@@ -18,6 +18,9 @@ export const complaintSlice = createSlice({
     setRiskAssessment: (state, action) => {
       state.riskAssessment = action.payload;
     },
+    setUpdatedFields: (state, action) => {
+      state.updatedFields = action.payload || [];
+    },
     setStatus: (state, action) => {
       state.status = action.payload;
     },
@@ -25,5 +28,5 @@ export const complaintSlice = createSlice({
   },
 });
 
-export const { setComplaint, setRiskAssessment, setStatus, resetComplaint } = complaintSlice.actions;
+export const { setComplaint, setRiskAssessment, setUpdatedFields, setStatus, resetComplaint } = complaintSlice.actions;
 export default complaintSlice.reducer;

@@ -38,7 +38,7 @@ async def test_copilot_log_complaint_endpoint(async_client: AsyncClient):
     assert response.status_code == 200
     data = response.json()
     assert data["intent"] == "LOG_COMPLAINT"
-    assert "Log Complaint workflow selected" in data["message"]
+    assert "complaint" in data["message"].lower() or "recorded" in data["message"].lower()
 
 
 @pytest.mark.asyncio

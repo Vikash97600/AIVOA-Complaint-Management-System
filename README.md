@@ -90,15 +90,43 @@ AIVOA uses **LangGraph** (`StateGraph`) to manage stateful AI agent workflows.
                           React UI
 ```
 
+### Log Complaint AI Tool (Prompt 7)
+
+The **Log Complaint AI Tool** parses natural-language user messages via Groq (`gemma2-9b-it`) and extracts structured pharmaceutical complaint attributes into validated Pydantic schemas (`ExtractedComplaintData`).
+
+```text
+User Natural Language Message
+          ↓
+React Copilot UI & Redux
+          ↓
+FastAPI (`POST /api/copilot/message`)
+          ↓
+LangGraph (`compiled_graph`)
+          ↓
+Intent Classifier (`LOG_COMPLAINT`)
+          ↓
+Log Complaint Node (`log_complaint_node`)
+          ↓
+Groq LLM Service (`GroqService` / `gemma2-9b-it`)
+          ↓
+Pydantic Validation (`ExtractedComplaintData`)
+          ↓
+MySQL Persistence (`ComplaintService.create_complaint`)
+          ↓
+Redux (`complaintSlice`)
+          ↓
+Left Panel Complaint Form Auto-Population
+```
+
+*Note: Risk Assessment is implemented separately in the next phase (Prompt 8).*
+
 ### Graph Execution Nodes
 1. **`classifier` (`classifier_node`)**: Evaluates incoming message content via `GroqService` to classify user intent (`LOG_COMPLAINT`, `EDIT_COMPLAINT`, `DOCUMENT_EXTRACTION`, `UNKNOWN`) and route to target workflow branch.
-2. **`log_complaint` (`log_complaint_node`)**: Interface for new complaint entity extraction (Log Complaint Tool - Prompt 7).
+2. **`log_complaint` (`log_complaint_node`)**: Log Complaint Tool extracting structured pharmaceutical entities from natural text via `GroqService`.
 3. **`edit_complaint` (`edit_complaint_node`)**: Interface for partial delta field extraction and merging (Edit Complaint Tool - Prompt 9).
 4. **`document_extraction` (`document_extract_node`)**: Interface for PDF text extraction and entity parsing (Document Extraction Tool - Prompt 10).
-5. **`risk_assessment` (`risk_assessment_node`)**: Interface for quality risk triage scoring (Risk Assessment Tool - Prompt 8).
+5. **`risk_assessment` (`risk_assessment_node`)**: Placeholder interface for quality risk triage scoring (Risk Assessment Tool - Prompt 8).
 6. **`response_synthesis` (`response_synthesis_node`)**: Formulates the final natural-language update for the Copilot chat.
-
-*Note: Groq-powered LLM processing (`gemma2-9b-it`) will be connected to these nodes in the next implementation stage (Prompt 6).*
 
 ---
 

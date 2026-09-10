@@ -16,7 +16,7 @@ async def test_log_complaint_routing():
     }
     result_state = await compiled_graph.ainvoke(initial_state)
     assert result_state["intent"] == Intent.LOG_COMPLAINT
-    assert "Log Complaint workflow selected" in result_state["response_message"]
+    assert "complaint" in result_state["response_message"].lower() or "recorded" in result_state["response_message"].lower()
 
 
 @pytest.mark.asyncio

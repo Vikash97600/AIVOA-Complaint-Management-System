@@ -1,58 +1,355 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: #0f172a;
+  color: #f8fafc;
+  min-height: 100vh;
+}
+
 .app-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 16px 24px;
 }
 
 .app-header {
-  text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #1e293b;
 }
 
-.app-header h1 {
-  font-size: 2.5rem;
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-brand h1 {
+  font-size: 1.5rem;
   font-weight: 700;
-  margin: 0 0 0.5rem 0;
-  color: #0f172a;
+  letter-spacing: 0.05em;
+  color: #38bdf8;
+}
+
+.version-pill {
+  font-size: 0.75rem;
+  background-color: #0369a1;
+  color: #e0f2fe;
+  padding: 2px 8px;
+  border-radius: 12px;
 }
 
 .app-subtitle {
-  font-size: 1.125rem;
-  color: #64748b;
-  margin: 0 0 1rem 0;
-}
-
-.status-badge {
-  display: inline-block;
-  background-color: #e0f2fe;
-  color: #0369a1;
-  padding: 0.5rem 1rem;
-  border-radius: 9999px;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin-top: 4px;
 }
 
 .app-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
 }
 
-.placeholder-panel {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+/* Left Panel & Complaint Form */
+.left-panel {
+  background-color: #1e293b;
+  border-radius: 12px;
+  padding: 20px;
+  overflow-y: auto;
+  border: 1px solid #334155;
 }
 
-.placeholder-panel h2 {
-  font-size: 1.25rem;
-  margin-top: 0;
-  color: #334155;
+.complaint-form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.placeholder-text {
+.complaint-form-container.empty-state {
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
   color: #94a3b8;
-  font-size: 0.95rem;
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #334155;
+}
+
+.form-header h3 {
+  font-size: 1.1rem;
+  color: #f1f5f9;
+}
+
+.status-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.status-draft {
+  background-color: #f59e0b22;
+  color: #fbbf24;
+  border: 1px solid #f59e0b44;
+}
+
+.status-committed {
+  background-color: #10b98122;
+  color: #34d399;
+  border: 1px solid #10b98144;
+}
+
+.meta-row {
+  display: flex;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.meta-value {
+  font-family: monospace;
+  color: #cbd5e1;
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form-section h4 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #38bdf8;
+  margin-top: 4px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-field label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.form-field input,
+.form-field textarea {
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  color: #f8fafc;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.form-field.updated-field input,
+.form-field.updated-field textarea {
+  border-color: #38bdf8;
+  box-shadow: 0 0 8px #38bdf844;
+  background-color: #0284c711;
+}
+
+/* Right Panel & Copilot Panel */
+.right-panel {
+  background-color: #1e293b;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #334155;
+  min-height: 0;
+}
+
+.copilot-panel-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.copilot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #334155;
+}
+
+.copilot-header h3 {
+  font-size: 1.1rem;
+  color: #f1f5f9;
+}
+
+.ai-badge {
+  font-size: 0.75rem;
+  color: #a855f7;
+  background-color: #a855f722;
+  border: 1px solid #a855f744;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.messages-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.welcome-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  background-color: #0f172a;
+  border-radius: 8px;
+  border: 1px dashed #334155;
+}
+
+.welcome-title {
+  font-weight: 600;
+  color: #38bdf8;
+}
+
+.welcome-desc {
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.sample-prompts button {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sample-prompts button:hover {
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
+.chat-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  max-width: 85%;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.user-bubble {
+  align-self: flex-end;
+  background-color: #0284c7;
+  color: #ffffff;
+  border-bottom-right-radius: 2px;
+}
+
+.assistant-bubble {
+  align-self: flex-start;
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  color: #f1f5f9;
+  border-bottom-left-radius: 2px;
+}
+
+.error-bubble {
+  border-color: #ef4444;
+  background-color: #ef444411;
+  color: #fca5a5;
+}
+
+.bubble-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+.intent-tag {
+  background-color: #3b82f633;
+  color: #60a5fa;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.copilot-input-form {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #334155;
+}
+
+.copilot-input-form input {
+  flex: 1;
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  color: #f8fafc;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-family: inherit;
+}
+
+.copilot-input-form input:focus {
+  outline: none;
+  border-color: #38bdf8;
+}
+
+.copilot-input-form button {
+  background-color: #0284c7;
+  color: #ffffff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.copilot-input-form button:hover:not(:disabled) {
+  background-color: #0369a1;
+}
+
+.copilot-input-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

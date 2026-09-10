@@ -118,6 +118,25 @@ class GroqService:
 
             except groq.APIError as e:
                 status = getattr(e, "status_code", 500)
+                error_msg = getattr(e, "message", str(e))
+
+                # Handle model decommissioning or unavailability on Groq API gracefully
+                if ("decommissioned" in error_msg.lower() or "does not exist" in error_msg.lower()) and target_model != "groq/compound":
+                    logger.warning(
+                        f"Model '{target_model}' is unavailable on Groq API ({error_msg}). "
+                        f"Automatically falling back to 'groq/compound'..."
+                    )
+                    return await self.generate(
+                        messages=messages,
+                        model="groq/compound",
+                        temperature=target_temp,
+                        max_tokens=target_max_tokens,
+                        timeout=target_timeout,
+                        response_format=response_format,
+                        request_id=request_id,
+                        operation=operation,
+                    )
+
                 if status and status >= 500 and attempt < max_attempts:
                     logger.warning(
                         f"Groq server error {status} (attempt {attempt}/{max_attempts}). Retrying..."
@@ -126,7 +145,6 @@ class GroqService:
                     continue
 
                 logger.error(f"Groq API error for request_id={request_id}: {e}")
-                error_msg = getattr(e, "message", str(e))
                 raise LLMServiceError(f"Groq request failed: {error_msg}") from e
 
             except Exception as e:
