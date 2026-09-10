@@ -9,7 +9,9 @@ def get_engine():
     global engine, AsyncSessionLocal
     if engine is None:
         db_url = settings.DATABASE_URL
-        if db_url.startswith("postgresql://"):
+        if db_url.startswith("mysql://") and not db_url.startswith("mysql+aiomysql://"):
+            db_url = db_url.replace("mysql://", "mysql+aiomysql://", 1)
+        elif db_url.startswith("postgresql://") and not db_url.startswith("postgresql+psycopg://"):
             db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
         elif db_url.startswith("sqlite://") and not db_url.startswith("sqlite+aiosqlite://"):
             db_url = db_url.replace("sqlite://", "sqlite+aiosqlite://", 1)

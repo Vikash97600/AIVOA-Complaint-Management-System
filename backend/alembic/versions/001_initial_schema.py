@@ -22,7 +22,7 @@ def upgrade() -> None:
     # 1. Complaints Table
     op.create_table(
         'complaints',
-        sa.Column('id', sa.UUID(), nullable=False),
+        sa.Column('id', sa.String(length=36), nullable=False),
         sa.Column('status', sa.Enum('DRAFT', 'COMMITTED', name='complaintstatus', native_enum=False), nullable=False),
         sa.Column('qms_reference_number', sa.String(length=50), nullable=True),
         sa.Column('customer_name', sa.String(length=255), nullable=True),
@@ -54,8 +54,8 @@ def upgrade() -> None:
     # 2. Risk Assessments Table
     op.create_table(
         'risk_assessments',
-        sa.Column('id', sa.UUID(), nullable=False),
-        sa.Column('complaint_id', sa.UUID(), nullable=False),
+        sa.Column('id', sa.String(length=36), nullable=False),
+        sa.Column('complaint_id', sa.String(length=36), nullable=False),
         sa.Column('severity_suggested', sa.Enum('LOW', 'MEDIUM', 'HIGH', 'CRITICAL', name='riskseverity', native_enum=False), nullable=False),
         sa.Column('complaint_category', sa.String(length=100), nullable=False),
         sa.Column('suggested_next_action', sa.Text(), nullable=False),
@@ -70,8 +70,8 @@ def upgrade() -> None:
     # 3. Complaint Documents Table
     op.create_table(
         'complaint_documents',
-        sa.Column('id', sa.UUID(), nullable=False),
-        sa.Column('complaint_id', sa.UUID(), nullable=False),
+        sa.Column('id', sa.String(length=36), nullable=False),
+        sa.Column('complaint_id', sa.String(length=36), nullable=False),
         sa.Column('file_name', sa.String(length=255), nullable=False),
         sa.Column('file_path', sa.String(length=500), nullable=False),
         sa.Column('file_type', sa.String(length=50), nullable=False),
@@ -85,8 +85,8 @@ def upgrade() -> None:
     # 4. QMS Ledger Table
     op.create_table(
         'qms_ledger',
-        sa.Column('id', sa.UUID(), nullable=False),
-        sa.Column('complaint_id', sa.UUID(), nullable=False),
+        sa.Column('id', sa.String(length=36), nullable=False),
+        sa.Column('complaint_id', sa.String(length=36), nullable=False),
         sa.Column('qms_reference_number', sa.String(length=50), nullable=False),
         sa.Column('committed_at', sa.DateTime(timezone=True), nullable=False),
         sa.Column('frozen_payload_json', sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), 'postgresql'), nullable=False),

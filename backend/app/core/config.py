@@ -8,8 +8,9 @@ class Settings(BaseSettings):
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
     
-    # Database connection string (PostgreSQL default)
-    DATABASE_URL: str = "postgresql+psycopg://username:password@localhost:5432/aivoa"
+    # Database connection string (MySQL default)
+    # MySQL Async example: mysql+aiomysql://root:password@localhost:3306/aivoa
+    DATABASE_URL: str = "mysql+aiomysql://root:password@localhost:3306/aivoa"
     
     # Groq API configuration
     GROQ_API_KEY: Optional[str] = None
