@@ -177,18 +177,20 @@ async def test_full_graph_edit_and_risk_reevaluation():
         "messages": [{"role": "user", "content": "Sorry, batch number is BMX240602, affected quantity is 48 capsules."}],
     }
 
+    from app.ai.prompts.classifier import ClassifierOutput
+
+    async def mock_generate_structured(messages, response_model, **kwargs):
+        if response_model == ClassifierOutput:
+            return ClassifierOutput(intent=Intent.EDIT_COMPLAINT)
+        elif response_model == ComplaintEditOutput:
+            return mock_edit_output
+        elif response_model == RiskAssessmentOutput:
+            return mock_risk_output
+        return None
+
     with patch(
-        "app.ai.nodes.classifier.groq_service.generate_structured",
-        new_callable=AsyncMock,
-        return_value=AsyncMock(intent=Intent.EDIT_COMPLAINT),
-    ), patch(
-        "app.ai.nodes.edit_complaint.groq_service.generate_structured",
-        new_callable=AsyncMock,
-        return_value=mock_edit_output,
-    ), patch(
-        "app.ai.nodes.risk_assessment.groq_service.generate_structured",
-        new_callable=AsyncMock,
-        return_value=mock_risk_output,
+        "app.services.groq_service.groq_service.generate_structured",
+        side_effect=mock_generate_structured,
     ):
         final_state = await compiled_graph.ainvoke(initial_state)
 

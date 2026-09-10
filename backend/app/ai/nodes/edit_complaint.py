@@ -90,6 +90,7 @@ async def edit_complaint_node(state: AgentState) -> Dict[str, Any]:
         if not requested_fields:
             logger.info("Edit complaint node: No valid/supported fields identified in edit request.")
             return {
+                "current_complaint": current_complaint,
                 "response_message": "I could not identify any supported complaint fields to update. Please specify what you want to change (e.g. batch number, affected quantity).",
                 "updated_fields": [],
             }
@@ -122,6 +123,7 @@ async def edit_complaint_node(state: AgentState) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Groq edit extraction failed in edit_complaint_node: {e}", exc_info=True)
         return {
+            "current_complaint": current_complaint,
             "error": "Failed to extract complaint edits via AI.",
             "response_message": "I encountered an issue processing your edit request. The existing complaint remains unchanged.",
             "updated_fields": [],
