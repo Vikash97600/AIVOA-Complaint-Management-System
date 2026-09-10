@@ -3,7 +3,6 @@ uvicorn[standard]>=0.28.0
 pydantic>=2.6.0
 pydantic-settings>=2.15.0
 sqlalchemy>=2.0.28
-asyncpg>=0.29.0
 aiomysql>=0.2.0
 pymysql>=1.1.0
 aiosqlite>=0.20.0

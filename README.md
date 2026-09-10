@@ -1,6 +1,6 @@
 # AIVOA – AI-Powered Customer Complaint Management System
 **Industry:** Pharmaceutical Manufacturing  
-**Architecture:** React + Redux Toolkit | Python FastAPI | LangGraph | Groq LLM | PostgreSQL  
+**Architecture:** React + Redux Toolkit | Python 3.11+ FastAPI | LangGraph | Groq LLM | MySQL  
 
 ---
 
@@ -12,33 +12,41 @@ AIVOA is an enterprise-grade AI-powered Quality Management System (QMS) prototyp
 - **Left Column:** Read-only structured pharmaceutical complaint form and AI risk triage card.
 - **Right Column:** Conversational AI Copilot interface and PDF document upload tool.
 - **Strict Control Flow:** All form entries and updates are driven by interaction with the AI Copilot (`USER -> AI COPILOT -> STRUCTURED FORM`).
-- **QMS Commitment:** Formal transition from `DRAFT` status to `COMMITTED` status in the database ledger with frozen JSONB payload snapshots.
+- **QMS Commitment:** Formal transition from `DRAFT` status to `COMMITTED` status in the database ledger with frozen JSON payload snapshots.
 
 ---
 
-## Database Architecture
+## Backend & Database Architecture
 
-AIVOA utilizes PostgreSQL managed via SQLAlchemy 2.0 (Async ORM) and Alembic database migrations.
+The AIVOA backend is powered by **Python 3.11+**, **FastAPI**, **SQLAlchemy 2.0 (Async ORM)**, and **MySQL**.
 
-### Key Database Entities
+### Key Technologies
+- **API Framework:** FastAPI 0.110+ with OpenAPI Swagger (`/docs`) and ReDoc (`/redoc`).
+- **Async Database Driver:** `aiomysql` (`mysql+aiomysql://`) for non-blocking FastAPI async I/O.
+- **Sync Migration Driver:** `pymysql` (`mysql+pymysql://`) for Alembic database migrations.
+- **Data Validation:** Pydantic v2 schemas (`ComplaintCreate`, `ComplaintUpdate`, `ComplaintResponse`).
+- **Error Handling:** Custom exception handlers (`AIVOAException`, `ComplaintNotFoundError`) that log server errors without leaking database credentials or stack traces to clients.
+- **Correlation Tracking:** Middleware injecting unique `X-Request-ID` headers.
+
+### Database Schema (MySQL)
 
 ```text
 ┌────────────────────────────────────────────────────────┐
 │                      complaints                        │
 ├────────────────────────────────────────────────────────┤
-│ id: UUID (PK)                                          │
+│ id: VARCHAR(36) (PK)                                   │
 │ status: ComplaintStatus (DRAFT / COMMITTED) [Index]    │
-│ qms_reference_number: String (Unique)                  │
-│ customer_name: String [Index]                          │
-│ product_name: String [Index]                           │
-│ batch_number: String [Index]                           │
+│ qms_reference_number: VARCHAR(50) (Unique)             │
+│ customer_name: VARCHAR(255) [Index]                    │
+│ product_name: VARCHAR(255) [Index]                     │
+│ batch_number: VARCHAR(100) [Index]                     │
 │ complaint_source, contact_info, complaint_date         │
 │ strength_grade, manufacturing_date, expiry_date        │
 │ affected_quantity, manufacturing_facility              │
 │ packaging_info, complaint_category, defect_type       │
-│ complaint_description: Text                            │
-│ created_at: DateTime(tz) [Index]                       │
-│ updated_at: DateTime(tz)                               │
+│ complaint_description: TEXT                            │
+│ created_at: DATETIME(tz) [Index]                       │
+│ updated_at: DATETIME(tz)                               │
 └───────────────────────────┬────────────────────────────┘
                             │
        ┌────────────────────┼────────────────────┐
@@ -47,21 +55,16 @@ AIVOA utilizes PostgreSQL managed via SQLAlchemy 2.0 (Async ORM) and Alembic dat
 ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
 │ risk_assessments │  │complaint_docum...│  │    qms_ledger    │
 ├──────────────────┤  ├──────────────────┤  ├──────────────────┤
-│id: UUID (PK)     │  │id: UUID (PK)     │  │id: UUID (PK)     │
+│id: VARCHAR(36) PK│  │id: VARCHAR(36) PK│  │id: VARCHAR(36) PK│
 │complaint_id (FK) │  │complaint_id (FK) │  │complaint_id (FK) │
-│severity: Enum    │  │file_name: String │  │qms_ref_num (UQ)  │
-│category: String  │  │file_path: String │  │committed_at(tz)  │
-│next_action: Text │  │file_type: String │  │frozen_payload    │
-│risk_details: Text│  │file_size: Int    │  │  (JSON / JSONB)  │
-│quarantine: Bool  │  │extracted_text    │  └──────────────────┘
+│severity: Enum    │  │file_name: VARCHAR│  │qms_ref_num (UQ)  │
+│category: VARCHAR │  │file_path: VARCHAR│  │committed_at(tz)  │
+│next_action: TEXT │  │file_type: VARCHAR│  │frozen_payload    │
+│risk_details: TEXT│  │file_size: INT    │  │  (JSON)          │
+│quarantine: BOOL  │  │extracted_text    │  └──────────────────┘
 │created_at (tz)   │  │uploaded_at (tz)  │
 └──────────────────┘  └──────────────────┘
 ```
-
-1. **`complaints`**: Primary table for structured complaint data (DRAFT and COMMITTED status).
-2. **`risk_assessments`**: 1-to-1 relationship storing AI-assisted risk triage results (Severity: LOW, MEDIUM, HIGH, CRITICAL; recommended next action; quarantine flag).
-3. **`complaint_documents`**: 1-to-many relationship storing uploaded PDF complaint file metadata and extracted text.
-4. **`qms_ledger`**: 1-to-1 relationship storing immutable JSONB snapshots of committed complaints with unique QMS reference numbers (`QMS-2026-XXXX`).
 
 ---
 
@@ -69,7 +72,7 @@ AIVOA utilizes PostgreSQL managed via SQLAlchemy 2.0 (Async ORM) and Alembic dat
 
 ```
 AIVOA/
-├── frontend/             # React + Redux Toolkit + Vite
+├── frontend/             # React + Redux Toolkit + Vite (Port 5173)
 │   ├── src/
 │   │   ├── components/   # Split-view components (Form & Copilot)
 │   │   ├── store/        # Redux Toolkit slices
@@ -77,15 +80,19 @@ AIVOA/
 │   │   └── App.jsx
 │   └── package.json
 │
-├── backend/              # Python 3.11+ FastAPI + LangGraph
+├── backend/              # Python 3.11+ FastAPI + MySQL (Port 8000)
 │   ├── app/
-│   │   ├── api/          # REST endpoints
-│   │   ├── database/     # SQLAlchemy models & Async session
-│   │   ├── schemas/      # Pydantic v2 schemas
-│   │   ├── ai/           # LangGraph orchestrator & Groq prompts
-│   │   └── main.py
+│   │   ├── api/          # Central API Router (/api)
+│   │   │   ├── routes/   # health.py, complaints.py
+│   │   │   └── router.py
+│   │   ├── core/         # config.py, exceptions.py, logging_config.py
+│   │   ├── database/     # models.py, session.py
+│   │   ├── schemas/      # common.py, complaint.py, risk.py, document.py, ledger.py
+│   │   ├── services/     # complaint_service.py (Async CRUD)
+│   │   ├── dependencies.py # get_db session generator & request_id
+│   │   └── main.py       # FastAPI application entry point
 │   ├── alembic/          # Alembic migrations (001_initial_schema)
-│   ├── tests/            # Pytest test suite (health check & database tests)
+│   ├── tests/            # Pytest test suite (13 passing tests)
 │   ├── requirements.txt
 │   └── .env.example
 │
@@ -96,7 +103,7 @@ AIVOA/
 
 ## Getting Started
 
-### 1. Backend Setup & Migrations
+### 1. Backend Setup & MySQL Migrations
 ```bash
 cd backend
 python -m venv venv
@@ -106,7 +113,8 @@ python -m venv venv
 
 pip install -r requirements.txt
 cp .env.example .env
-# Configure GROQ_API_KEY and DATABASE_URL in .env
+# Configure GROQ_API_KEY and DATABASE_URL (MySQL) in .env
+# Example: DATABASE_URL=mysql+aiomysql://root:password@localhost:3306/aivoa
 
 # Run database migrations
 alembic upgrade head
@@ -114,6 +122,10 @@ alembic upgrade head
 # Run server
 uvicorn app.main:app --reload --port 8000
 ```
+
+- **API Documentation:** `http://localhost:8000/docs` (Swagger UI) or `http://localhost:8000/redoc` (ReDoc)
+- **API Base Route:** `http://localhost:8000/api`
+- **Health Check:** `http://localhost:8000/api/health`
 
 ### 2. Frontend Setup
 ```bash

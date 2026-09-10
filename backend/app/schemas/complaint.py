@@ -30,7 +30,25 @@ class ComplaintBase(BaseModel):
 class ComplaintCreate(ComplaintBase):
     status: Optional[ComplaintStatus] = ComplaintStatus.DRAFT
 
-class ComplaintUpdate(ComplaintBase):
+class ComplaintUpdate(BaseModel):
+    customer_name: Optional[str] = None
+    complaint_source: Optional[str] = None
+    contact_info: Optional[str] = None
+    complaint_date: Optional[str] = None
+    
+    product_name: Optional[str] = None
+    strength_grade: Optional[str] = None
+    batch_number: Optional[str] = None
+    manufacturing_date: Optional[str] = None
+    expiry_date: Optional[str] = None
+    affected_quantity: Optional[str] = None
+    
+    manufacturing_facility: Optional[str] = None
+    packaging_info: Optional[str] = None
+    
+    complaint_category: Optional[str] = None
+    defect_type: Optional[str] = None
+    complaint_description: Optional[str] = None
     status: Optional[ComplaintStatus] = None
     qms_reference_number: Optional[str] = None
 
