@@ -1,6 +1,5 @@
 from typing import Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.ai.graph import compiled_graph
 from app.ai.state import AgentState, Intent
 from app.schemas.copilot import CopilotMessageRequest, CopilotResponse
 from app.schemas.complaint import ComplaintResponse
@@ -36,7 +35,8 @@ async def process_copilot_message(
 
     try:
         logger.info(f"Invoking AIVOA LangGraph Agent for message: '{request.message[:50]}...'")
-        
+        from app.ai.graph import compiled_graph
+
         # Invoke LangGraph agent
         final_state: AgentState = await compiled_graph.ainvoke(initial_state)
         

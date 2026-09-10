@@ -31,3 +31,17 @@ async def database_health_check(db: AsyncSession = Depends(get_db)):
             "status": "error",
             "database": "mysql"
         }
+
+@router.get("/health/ai", status_code=status.HTTP_200_OK)
+async def ai_health_check():
+    """AI service configuration status check endpoint."""
+    is_configured = bool(
+        settings.GROQ_API_KEY
+        and settings.GROQ_API_KEY.strip()
+        and settings.GROQ_API_KEY != "your_groq_api_key_here"
+    )
+    return {
+        "provider": "groq",
+        "model": settings.GROQ_MODEL,
+        "configured": is_configured
+    }

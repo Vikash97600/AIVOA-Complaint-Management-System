@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     # Groq API configuration
     GROQ_API_KEY: Optional[str] = None
     GROQ_MODEL: str = "gemma2-9b-it"
+    GROQ_TEMPERATURE: float = 0.0
+    GROQ_MAX_TOKENS: int = 2048
+    GROQ_TIMEOUT: int = 30
     
     # Frontend URL for CORS
     FRONTEND_URL: str = "http://localhost:5173"

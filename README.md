@@ -16,6 +16,38 @@ AIVOA is an enterprise-grade AI-powered Quality Management System (QMS) prototyp
 
 ---
 
+## Groq AI Setup
+
+```env
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=gemma2-9b-it
+GROQ_TEMPERATURE=0
+GROQ_MAX_TOKENS=2048
+GROQ_TIMEOUT=30
+```
+
+AIVOA uses **Groq** as the primary LLM provider and `gemma2-9b-it` as the default configured model.
+
+The Groq API key is stored strictly on the backend via environment variables and is never exposed to the React frontend.
+
+### AI Architecture Flow
+
+```text
+FastAPI
+   ↓
+Copilot Service
+   ↓
+LangGraph
+   ↓
+AI Nodes (Classifier Node)
+   ↓
+Groq Service (`GroqService`)
+   ↓
+Groq API (`gemma2-9b-it`)
+```
+
+---
+
 ## AI Architecture (LangGraph Orchestration)
 
 AIVOA uses **LangGraph** (`StateGraph`) to manage stateful AI agent workflows.
@@ -28,42 +60,42 @@ AIVOA uses **LangGraph** (`StateGraph`) to manage stateful AI agent workflows.
                          FastAPI API
                                |
                                ↓
-                       Copilot Service
+                        Copilot Service
                                |
                                ↓
-                      ┌─────────────────┐
-                      │   LangGraph     │
-                      │                 │
-                      │ classifier      │
-                      │      ↓          │
-                      │  conditional    │
-                      │    routing      │
-                      │      ↓          │
-                      │ ┌────┼─────┐    │
-                      │ ↓    ↓     ↓    │
-                      │Log  Edit Document
-                      │ │    │      │   │
-                      │ └────┼──────┘   │
-                      │      ↓          │
-                      │ Risk Assessment │
-                      │      ↓          │
-                      │ Response        │
-                      │ Synthesis       │
-                      └─────────────────┘
+                       ┌─────────────────┐
+                       │   LangGraph     │
+                       │                 │
+                       │ classifier      │───► Groq Service (gemma2-9b-it)
+                       │      ↓          │
+                       │  conditional    │
+                       │    routing      │
+                       │      ↓          │
+                       │ ┌────┼─────┐    │
+                       │ ↓    ↓     ↓    │
+                       │Log  Edit Document
+                       │ │    │      │   │
+                       │ └────┼──────┘   │
+                       │      ↓          │
+                       │ Risk Assessment │
+                       │      ↓          │
+                       │ Response        │
+                       │ Synthesis       │
+                       └─────────────────┘
                                |
                                ↓
-                      Structured Response
+                       Structured Response
                                |
                                ↓
-                         React UI
+                          React UI
 ```
 
 ### Graph Execution Nodes
-1. **`classifier` (`classifier_node`)**: Evaluates incoming message content to route to target workflow branch.
-2. **`log_complaint` (`log_complaint_node`)**: Interface for new complaint entity extraction (Log Complaint Tool).
-3. **`edit_complaint` (`edit_complaint_node`)**: Interface for partial delta field extraction and merging (Edit Complaint Tool).
-4. **`document_extraction` (`document_extract_node`)**: Interface for PDF text extraction and entity parsing.
-5. **`risk_assessment` (`risk_assessment_node`)**: Interface for quality risk triage scoring.
+1. **`classifier` (`classifier_node`)**: Evaluates incoming message content via `GroqService` to classify user intent (`LOG_COMPLAINT`, `EDIT_COMPLAINT`, `DOCUMENT_EXTRACTION`, `UNKNOWN`) and route to target workflow branch.
+2. **`log_complaint` (`log_complaint_node`)**: Interface for new complaint entity extraction (Log Complaint Tool - Prompt 7).
+3. **`edit_complaint` (`edit_complaint_node`)**: Interface for partial delta field extraction and merging (Edit Complaint Tool - Prompt 9).
+4. **`document_extraction` (`document_extract_node`)**: Interface for PDF text extraction and entity parsing (Document Extraction Tool - Prompt 10).
+5. **`risk_assessment` (`risk_assessment_node`)**: Interface for quality risk triage scoring (Risk Assessment Tool - Prompt 8).
 6. **`response_synthesis` (`response_synthesis_node`)**: Formulates the final natural-language update for the Copilot chat.
 
 *Note: Groq-powered LLM processing (`gemma2-9b-it`) will be connected to these nodes in the next implementation stage (Prompt 6).*
