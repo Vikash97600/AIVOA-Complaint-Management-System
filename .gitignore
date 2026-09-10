@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+*.db
+*.sqlite3
+
+# Node / React
+node_modules/
+dist/
+.ds_store
+
+# Environment & Uploads
+.env
+uploads/*
+!uploads/.gitkeep
