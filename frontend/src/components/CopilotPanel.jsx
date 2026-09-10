@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { addMessage, setProcessing, setError } from '../store/copilotSlice';
-import { setComplaint, setUpdatedFields } from '../store/complaintSlice';
+import { setComplaint, setRiskAssessment, setUpdatedFields } from '../store/complaintSlice';
 import { sendCopilotMessage } from '../services/api';
 
 export function CopilotPanel() {
@@ -48,6 +48,9 @@ export function CopilotPanel() {
       // If backend returned a structured complaint payload, update Redux complaint form state!
       if (response.complaint) {
         dispatch(setComplaint(response.complaint));
+      }
+      if (response.risk_assessment) {
+        dispatch(setRiskAssessment(response.risk_assessment));
       }
       if (response.updated_fields) {
         dispatch(setUpdatedFields(response.updated_fields));

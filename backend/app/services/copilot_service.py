@@ -5,7 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.state import AgentState, Intent
 from app.schemas.copilot import CopilotMessageRequest, CopilotResponse
 from app.schemas.complaint import ComplaintResponse, ComplaintCreate, ComplaintUpdate
+from app.schemas.risk import RiskAssessmentCreate, RiskAssessmentResponse
 from app.services import complaint_service
+from app.services.risk_assessment_service import save_or_update_risk_assessment
 from app.core.logging_config import logger
 
 
@@ -14,11 +16,12 @@ async def process_copilot_message(
     request: CopilotMessageRequest
 ) -> CopilotResponse:
     """
-    Orchestrates user messages through the LangGraph AI Copilot state graph
-    and persists/updates DRAFT complaints in MySQL database.
+    Orchestrates user messages through the LangGraph AI Copilot state graph,
+    persisting/updating DRAFT complaints and preliminary AI Risk Assessments in MySQL.
     """
     current_complaint_dict: Optional[Dict[str, Any]] = None
     existing_complaint_obj: Optional[ComplaintResponse] = None
+    risk_assessment_obj: Optional[RiskAssessmentResponse] = None
 
     # Fetch active complaint if complaint_id is provided
     if request.complaint_id:
@@ -26,6 +29,8 @@ async def process_copilot_message(
             complaint_entity = await complaint_service.get_complaint_by_id(db, request.complaint_id)
             existing_complaint_obj = ComplaintResponse.model_validate(complaint_entity)
             current_complaint_dict = existing_complaint_obj.model_dump(mode="json")
+            if existing_complaint_obj.risk_assessment:
+                risk_assessment_obj = existing_complaint_obj.risk_assessment
         except Exception as e:
             logger.warning(f"Could not load active complaint '{request.complaint_id}' for Copilot context: {e}")
 
@@ -34,6 +39,7 @@ async def process_copilot_message(
         "messages": [{"role": "user", "content": request.message}],
         "complaint_id": request.complaint_id,
         "current_complaint": current_complaint_dict,
+        "risk_assessment": risk_assessment_obj.model_dump(mode="json") if risk_assessment_obj else None,
         "updated_fields": [],
     }
 
@@ -47,38 +53,58 @@ async def process_copilot_message(
         intent_str = detected_intent.value if isinstance(detected_intent, Intent) else str(detected_intent)
         response_msg = final_state.get("response_message") or "AIVOA Copilot request processed."
         extracted_complaint = final_state.get("current_complaint")
+        extracted_risk = final_state.get("risk_assessment")
         updated_fields = final_state.get("updated_fields") or []
         err_msg = final_state.get("error")
 
-        # Database Persistence: Create or Update DRAFT complaint
+        saved_entity = None
+
+        # Database Persistence 1: Create or Update DRAFT complaint
         if extracted_complaint and isinstance(extracted_complaint, dict):
             try:
-                # Filter out None values or construct valid schema input
                 clean_payload = {k: v for k, v in extracted_complaint.items() if v is not None}
                 
                 if request.complaint_id:
-                    # Update active existing draft
                     update_in = ComplaintUpdate(**clean_payload)
                     saved_entity = await complaint_service.update_complaint(
                         db, request.complaint_id, update_in
                     )
-                    existing_complaint_obj = ComplaintResponse.model_validate(saved_entity)
                     logger.info(f"Updated active complaint ID '{request.complaint_id}' from Copilot flow.")
                 elif detected_intent == Intent.LOG_COMPLAINT and clean_payload:
-                    # Create new DRAFT complaint
                     create_in = ComplaintCreate(**clean_payload)
                     saved_entity = await complaint_service.create_complaint(db, create_in)
-                    existing_complaint_obj = ComplaintResponse.model_validate(saved_entity)
                     logger.info(f"Persisted new DRAFT complaint ID '{saved_entity.id}' from Log Complaint AI workflow.")
+                elif existing_complaint_obj and existing_complaint_obj.id:
+                    saved_entity = await complaint_service.get_complaint_by_id(db, existing_complaint_obj.id)
             except Exception as db_err:
                 logger.error(f"Failed to persist complaint data to database: {db_err}", exc_info=True)
                 err_msg = err_msg or "Failed to save complaint state to database."
+
+        # Database Persistence 2: Create or Update RiskAssessment
+        if extracted_risk and isinstance(extracted_risk, dict) and (saved_entity or request.complaint_id):
+            target_complaint_id = saved_entity.id if saved_entity else request.complaint_id
+            try:
+                risk_create_in = RiskAssessmentCreate(**extracted_risk)
+                saved_risk_entity = await save_or_update_risk_assessment(
+                    db, target_complaint_id, risk_create_in
+                )
+                risk_assessment_obj = RiskAssessmentResponse.model_validate(saved_risk_entity)
+                logger.info(f"Persisted RiskAssessment for complaint ID '{target_complaint_id}'.")
+            except Exception as risk_db_err:
+                logger.error(f"Failed to persist RiskAssessment to database: {risk_db_err}", exc_info=True)
+
+        # Refresh existing_complaint_obj if entity was updated or created
+        if saved_entity:
+            refreshed = await complaint_service.get_complaint_by_id(db, saved_entity.id)
+            existing_complaint_obj = ComplaintResponse.model_validate(refreshed)
+            if refreshed.risk_assessment:
+                risk_assessment_obj = RiskAssessmentResponse.model_validate(refreshed.risk_assessment)
 
         return CopilotResponse(
             message=response_msg,
             intent=intent_str,
             complaint=existing_complaint_obj,
-            risk_assessment=None,
+            risk_assessment=risk_assessment_obj,
             updated_fields=updated_fields,
             error=err_msg,
         )
@@ -89,7 +115,7 @@ async def process_copilot_message(
             message="I couldn't process the request due to an internal workflow error.",
             intent=Intent.UNKNOWN.value,
             complaint=existing_complaint_obj,
-            risk_assessment=None,
+            risk_assessment=risk_assessment_obj,
             updated_fields=[],
             error="AI workflow execution failed",
         )

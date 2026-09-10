@@ -1,5 +1,6 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
+import { RiskAssessmentCard } from './RiskAssessmentCard';
 
 export function ComplaintForm() {
   const currentComplaint = useSelector((state) => state.complaint.currentComplaint);
@@ -95,6 +96,10 @@ export function ComplaintForm() {
           <label>Complaint Description</label>
           <textarea rows="3" value={currentComplaint.complaint_description || ''} readOnly placeholder="Not specified" />
         </div>
+      </div>
+
+      <div className="form-section risk-section-wrapper">
+        <RiskAssessmentCard />
       </div>
     </div>
   );
