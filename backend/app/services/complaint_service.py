@@ -102,3 +102,28 @@ async def update_complaint(
         await db.rollback()
         logger.error(f"Failed to update complaint {complaint_id}: {e}", exc_info=True)
         raise DatabaseOperationError(f"Failed to update complaint '{complaint_id}'")
+
+
+async def create_complaint_document(
+    db: AsyncSession,
+    complaint_id: uuid.UUID | str,
+    doc_in: "ComplaintDocumentCreate",
+) -> "ComplaintDocument":
+    """Creates a new ComplaintDocument record linked to a complaint."""
+    from app.database.models import ComplaintDocument
+    if isinstance(complaint_id, str):
+        complaint_id = uuid.UUID(complaint_id)
+
+    try:
+        data = doc_in.model_dump()
+        doc = ComplaintDocument(complaint_id=complaint_id, **data)
+        db.add(doc)
+        await db.commit()
+        await db.refresh(doc)
+        logger.info(f"Created ComplaintDocument ID '{doc.id}' for complaint '{complaint_id}'.")
+        return doc
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to create ComplaintDocument for complaint {complaint_id}: {e}", exc_info=True)
+        raise DatabaseOperationError("Failed to save complaint document metadata to database")
+

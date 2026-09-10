@@ -35,8 +35,33 @@ export const sendCopilotMessage = async (message, complaintId = null) => {
   }
 };
 
+export const uploadCopilotDocument = async (file, complaintId = null) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (complaintId) {
+      formData.append('complaint_id', complaintId);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/copilot/document`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.detail || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Document upload API request failed:', error);
+    throw error;
+  }
+};
+
 export default {
   API_BASE_URL,
   checkHealth,
   sendCopilotMessage,
+  uploadCopilotDocument,
 };
+

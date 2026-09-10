@@ -174,13 +174,58 @@ Left Panel Complaint Form & Risk Card Real-Time Update
 
 *Key Safety Principle: Only explicitly requested complaint fields are modified; all other complaint attributes and system fields remain completely preserved.*
 
+### Document Extraction Tool (Prompt 10)
+
+The **Document Extraction Tool** enables users to upload customer complaint documents (PDF, EML, TXT) directly through the AIVOA Copilot interface.
+
+```text
+Uploaded Document (PDF / EML / TXT)
+          ↓
+React Copilot UI & Redux (`uploadCopilotDocument`)
+          ↓
+FastAPI (`POST /api/copilot/document`)
+          ↓
+File Validation & Storage (Path Traversal Prevention + UUID Filename)
+          ↓
+Document Extraction Service (`extract_text_from_pdf` via `pypdf` / EML / TXT)
+          ↓
+LangGraph (`compiled_graph` with `DOCUMENT_EXTRACTION` intent)
+          ↓
+Document Extraction Node (`document_extract_node`)
+          ↓
+Groq LLM Service (`GroqService` / `gemma2-9b-it`)
+          ↓
+Pydantic Validation (`ExtractedComplaintData`)
+          ↓
+MySQL Persistence (`Complaint`, `ComplaintDocument`, `RiskAssessment`)
+          ↓
+AI Risk Assessment Node (`risk_assessment_node` generates risk triage)
+          ↓
+Redux & Left Panel Form Auto-Population + Risk Card Update
+```
+
+*Supported Document Types:*
+- **PDF (`.pdf`):** Extracted via `pypdf`.
+- **Email (`.eml`):** Parsed via Python standard library `email` parser (Subject, From, To, Date, Body).
+- **Text (`.txt`):** Decoded via UTF-8 string parser.
+
+*Upload Security & Safety Rules:*
+- Strict file size limit validation (`MAX_UPLOAD_SIZE` 10 MB).
+- Extension & MIME type validation (.pdf, .eml, .txt).
+- Path traversal prevention: UUID generated stored filename (`uploads/<uuid>.<ext>`). Original filename retained only as metadata.
+- Binary document contents are stored strictly on the server filesystem, never inside MySQL.
+- Prompt Injection Resistance: Document text is treated strictly as UNTRUSTED DATA content, preventing prompt injection attacks from overriding AI system instructions.
+- Missing field preservation: Unmentioned or absent fields (e.g. missing batch number or expiry date) remain `null` and are not hallucinated.
+- *Limitation Notice:* Production-grade OCR for scanned/image-only PDFs is outside current prototype scope. Image-only PDFs return controlled messages asking for text-based documents.
+
 ### Graph Execution Nodes
 1. **`classifier` (`classifier_node`)**: Evaluates incoming message content via `GroqService` to classify user intent (`LOG_COMPLAINT`, `EDIT_COMPLAINT`, `DOCUMENT_EXTRACTION`, `UNKNOWN`) and route to target workflow branch.
 2. **`log_complaint` (`log_complaint_node`)**: Log Complaint Tool extracting structured pharmaceutical entities from natural text via `GroqService`.
 3. **`edit_complaint` (`edit_complaint_node`)**: Edit Complaint Tool extracting requested partial field deltas via `GroqService` and applying deterministic Python merging.
-4. **`document_extraction` (`document_extract_node`)**: Interface for PDF text extraction and entity parsing (Document Extraction Tool - Prompt 10).
+4. **`document_extraction` (`document_extract_node`)**: Real Document Extraction Tool parsing text from uploaded PDF/EML/TXT documents via `pypdf` and `GroqService`.
 5. **`risk_assessment` (`risk_assessment_node`)**: AI Risk Assessment Tool performing quality risk triage scoring (`severity_suggested`, `suggested_next_action`, `risk_details`, `requires_quarantine`).
 6. **`response_synthesis` (`response_synthesis_node`)**: Formulates the final natural-language update for the Copilot chat.
+
 
 ---
 

@@ -23,6 +23,28 @@ class DatabaseOperationError(AIVOAException):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+class InvalidDocumentTypeError(AIVOAException):
+    def __init__(self, message: str = "Unsupported document type. Please upload a PDF, EML, or TXT file."):
+        super().__init__(
+            message=message,
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+class DocumentOversizedError(AIVOAException):
+    def __init__(self, message: str = "The uploaded file exceeds the maximum allowed size."):
+        super().__init__(
+            message=message,
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+class DocumentExtractionError(AIVOAException):
+    def __init__(self, message: str = "No readable text could be extracted from the document."):
+        super().__init__(
+            message=message,
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+
 async def aivoa_exception_handler(request: Request, exc: AIVOAException) -> JSONResponse:
     logger.warning(f"AIVOA Exception [{exc.status_code}] on {request.url.path}: {exc.message}")
     return JSONResponse(

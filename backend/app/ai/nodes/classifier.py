@@ -13,6 +13,10 @@ async def classifier_node(state: AgentState) -> Dict[str, Any]:
     DOCUMENT_EXTRACTION, or UNKNOWN using gemma2-9b-it via GroqService.
     Falls back gracefully to keyword heuristic if Groq is unconfigured or unavailable.
     """
+    if state.get("intent") == Intent.DOCUMENT_EXTRACTION or state.get("document_text"):
+        logger.info("Classifier node: Document workflow detected. Routing to DOCUMENT_EXTRACTION.")
+        return {"intent": Intent.DOCUMENT_EXTRACTION}
+
     messages = state.get("messages", [])
     if not messages:
         logger.info("Classifier node: No messages provided. Defaulting to UNKNOWN.")
@@ -21,6 +25,7 @@ async def classifier_node(state: AgentState) -> Dict[str, Any]:
     last_message = messages[-1].get("content", "").strip()
     if not last_message:
         return {"intent": Intent.UNKNOWN}
+
 
     logger.info(f"Classifier node classifying user message: '{last_message[:60]}...'")
 
