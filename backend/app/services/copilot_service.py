@@ -62,18 +62,25 @@ async def process_copilot_message(
         # Database Persistence 1: Create or Update DRAFT complaint
         if extracted_complaint and isinstance(extracted_complaint, dict):
             try:
-                clean_payload = {k: v for k, v in extracted_complaint.items() if v is not None}
-                
                 if request.complaint_id:
-                    update_in = ComplaintUpdate(**clean_payload)
-                    saved_entity = await complaint_service.update_complaint(
-                        db, request.complaint_id, update_in
-                    )
-                    logger.info(f"Updated active complaint ID '{request.complaint_id}' from Copilot flow.")
-                elif detected_intent == Intent.LOG_COMPLAINT and clean_payload:
-                    create_in = ComplaintCreate(**clean_payload)
-                    saved_entity = await complaint_service.create_complaint(db, create_in)
-                    logger.info(f"Persisted new DRAFT complaint ID '{saved_entity.id}' from Log Complaint AI workflow.")
+                    # Partial DB delta update containing ONLY modified fields
+                    if updated_fields:
+                        update_payload = {f: extracted_complaint[f] for f in updated_fields if f in extracted_complaint}
+                    else:
+                        update_payload = {k: v for k, v in extracted_complaint.items() if v is not None}
+
+                    if update_payload:
+                        update_in = ComplaintUpdate(**update_payload)
+                        saved_entity = await complaint_service.update_complaint(
+                            db, request.complaint_id, update_in
+                        )
+                        logger.info(f"Updated active complaint ID '{request.complaint_id}' fields: {list(update_payload.keys())}")
+                elif detected_intent == Intent.LOG_COMPLAINT:
+                    clean_payload = {k: v for k, v in extracted_complaint.items() if v is not None}
+                    if clean_payload:
+                        create_in = ComplaintCreate(**clean_payload)
+                        saved_entity = await complaint_service.create_complaint(db, create_in)
+                        logger.info(f"Persisted new DRAFT complaint ID '{saved_entity.id}' from Log Complaint AI workflow.")
                 elif existing_complaint_obj and existing_complaint_obj.id:
                     saved_entity = await complaint_service.get_complaint_by_id(db, existing_complaint_obj.id)
             except Exception as db_err:

@@ -140,10 +140,44 @@ React UI (`RiskAssessmentCard.jsx`)
 
 *Note: All AI risk assessments represent preliminary triage recommendations ("AI-assisted preliminary assessment — QA review required") and do not replace formal human QA investigation or regulatory decisions.*
 
+### Edit Complaint AI Tool (Prompt 9)
+
+The **Edit Complaint AI Tool** allows modifying active customer complaints through natural-language edit requests via Groq (`gemma2-9b-it`) and partial delta merging (`ComplaintEditOutput`).
+
+```text
+User Natural Language Edit Request (e.g. "Batch is BMX240602, quantity is 48 capsules")
+          ↓
+React Copilot UI & Redux
+          ↓
+FastAPI (`POST /api/copilot/message` with active `complaint_id`)
+          ↓
+LangGraph (`compiled_graph`)
+          ↓
+Intent Classifier (`EDIT_COMPLAINT`)
+          ↓
+Edit Complaint Node (`edit_complaint_node`)
+          ↓
+Groq LLM Service (`GroqService` / `gemma2-9b-it`)
+          ↓
+Pydantic Validation (`ComplaintEditOutput` -> `updated_fields`, `changes`)
+          ↓
+Python Deterministic Merge (Updates ONLY requested fields; preserves all unmentioned data)
+          ↓
+MySQL Partial Delta Update (`ComplaintService.update_complaint`)
+          ↓
+AI Risk Re-Assessment Node (`risk_assessment_node` re-evaluates updated complaint)
+          ↓
+Redux (`complaintSlice`)
+          ↓
+Left Panel Complaint Form & Risk Card Real-Time Update
+```
+
+*Key Safety Principle: Only explicitly requested complaint fields are modified; all other complaint attributes and system fields remain completely preserved.*
+
 ### Graph Execution Nodes
 1. **`classifier` (`classifier_node`)**: Evaluates incoming message content via `GroqService` to classify user intent (`LOG_COMPLAINT`, `EDIT_COMPLAINT`, `DOCUMENT_EXTRACTION`, `UNKNOWN`) and route to target workflow branch.
 2. **`log_complaint` (`log_complaint_node`)**: Log Complaint Tool extracting structured pharmaceutical entities from natural text via `GroqService`.
-3. **`edit_complaint` (`edit_complaint_node`)**: Interface for partial delta field extraction and merging (Edit Complaint Tool - Prompt 9).
+3. **`edit_complaint` (`edit_complaint_node`)**: Edit Complaint Tool extracting requested partial field deltas via `GroqService` and applying deterministic Python merging.
 4. **`document_extraction` (`document_extract_node`)**: Interface for PDF text extraction and entity parsing (Document Extraction Tool - Prompt 10).
 5. **`risk_assessment` (`risk_assessment_node`)**: AI Risk Assessment Tool performing quality risk triage scoring (`severity_suggested`, `suggested_next_action`, `risk_details`, `requires_quarantine`).
 6. **`response_synthesis` (`response_synthesis_node`)**: Formulates the final natural-language update for the Copilot chat.

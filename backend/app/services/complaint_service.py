@@ -91,8 +91,7 @@ async def update_complaint(
 
     try:
         for field, value in update_data.items():
-            if value is not None:
-                setattr(complaint, field, value)
+            setattr(complaint, field, value)
 
         complaint.updated_at = datetime.now(timezone.utc)
         await db.commit()
