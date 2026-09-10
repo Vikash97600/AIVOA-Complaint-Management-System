@@ -6,6 +6,8 @@ const initialState = {
   status: 'idle', // 'idle' | 'draft' | 'committed'
   qmsReferenceNumber: null,
   updatedFields: [],
+  loading: false,
+  error: null,
 };
 
 export const complaintSlice = createSlice({
@@ -14,6 +16,10 @@ export const complaintSlice = createSlice({
   reducers: {
     setComplaint: (state, action) => {
       state.currentComplaint = action.payload;
+      if (action.payload) {
+        state.status = action.payload.status ? action.payload.status.toLowerCase() : 'draft';
+        state.qmsReferenceNumber = action.payload.qms_reference_number || null;
+      }
     },
     setRiskAssessment: (state, action) => {
       state.riskAssessment = action.payload;
@@ -24,9 +30,24 @@ export const complaintSlice = createSlice({
     setStatus: (state, action) => {
       state.status = action.payload;
     },
+    setComplaintLoading: (state, action) => {
+      state.loading = action.payload;
+    },
+    setComplaintError: (state, action) => {
+      state.error = action.payload;
+    },
     resetComplaint: () => initialState,
   },
 });
 
-export const { setComplaint, setRiskAssessment, setUpdatedFields, setStatus, resetComplaint } = complaintSlice.actions;
+export const {
+  setComplaint,
+  setRiskAssessment,
+  setUpdatedFields,
+  setStatus,
+  setComplaintLoading,
+  setComplaintError,
+  resetComplaint,
+} = complaintSlice.actions;
+
 export default complaintSlice.reducer;

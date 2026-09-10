@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setComplaint } from '../../store/complaintSlice';
-import { addMessage } from '../../store/copilotSlice';
-import { commitComplaint } from '../../services/api';
+import { selectCurrentComplaint } from '../../store/selectors';
+import { commitComplaintThunk } from '../../store/thunks';
 
 export function CommitQMSButton() {
   const dispatch = useDispatch();
-  const currentComplaint = useSelector((state) => state.complaint.currentComplaint);
+  const currentComplaint = useSelector(selectCurrentComplaint);
   const [isCommitting, setIsCommitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -22,25 +21,9 @@ export function CommitQMSButton() {
     setIsCommitting(true);
 
     try {
-      const updatedComplaint = await commitComplaint(currentComplaint.id);
-      dispatch(setComplaint(updatedComplaint));
-      
-      dispatch(
-        addMessage({
-          sender: 'assistant',
-          content: `Complaint formally committed to the QMS Ledger! Assigned Reference Number: ${updatedComplaint.qms_reference_number || 'QMS-2026-001'}.`,
-          intent: 'QMS_COMMIT',
-        })
-      );
+      await dispatch(commitComplaintThunk(currentComplaint.id)).unwrap();
     } catch (err) {
       console.error('Failed to commit complaint to QMS:', err);
-      dispatch(
-        addMessage({
-          sender: 'assistant',
-          content: `Failed to commit complaint to QMS Ledger: ${err.message}`,
-          isError: true,
-        })
-      );
     } finally {
       setIsCommitting(false);
     }

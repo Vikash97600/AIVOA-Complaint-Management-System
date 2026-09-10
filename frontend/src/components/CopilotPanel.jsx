@@ -1,16 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { addMessage, setProcessing, setError } from '../store/copilotSlice';
-import { setComplaint, setRiskAssessment, setUpdatedFields } from '../store/complaintSlice';
-import { setUploadedFile, setExtractionStatus, setDocumentError } from '../store/documentSlice';
-import { sendCopilotMessage, uploadCopilotDocument } from '../services/api';
+import {
+  selectCopilotMessages,
+  selectCopilotProcessing,
+  selectCurrentComplaint,
+} from '../store/selectors';
+import { sendCopilotMessageThunk, uploadCopilotDocumentThunk } from '../store/thunks';
 
 export function CopilotPanel() {
   const [inputText, setInputText] = useState('');
   const dispatch = useDispatch();
-  const messages = useSelector((state) => state.copilot.messages);
-  const isProcessing = useSelector((state) => state.copilot.isProcessing);
-  const currentComplaint = useSelector((state) => state.complaint.currentComplaint);
+  const messages = useSelector(selectCopilotMessages);
+  const isProcessing = useSelector(selectCopilotProcessing);
+  const currentComplaint = useSelector(selectCurrentComplaint);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -29,112 +31,18 @@ export function CopilotPanel() {
     const userMsg = inputText.trim();
     setInputText('');
 
-    dispatch(addMessage({ sender: 'user', content: userMsg }));
-    dispatch(setProcessing(true));
-    dispatch(setError(null));
-
-    try {
-      const activeComplaintId = currentComplaint?.id || null;
-      const response = await sendCopilotMessage(userMsg, activeComplaintId);
-
-      dispatch(
-        addMessage({
-          sender: 'assistant',
-          content: response.message,
-          intent: response.intent,
-        })
-      );
-
-      if (response.complaint) {
-        dispatch(setComplaint(response.complaint));
-      }
-      if (response.risk_assessment) {
-        dispatch(setRiskAssessment(response.risk_assessment));
-      }
-      if (response.updated_fields) {
-        dispatch(setUpdatedFields(response.updated_fields));
-      }
-    } catch (err) {
-      console.error('Failed to communicate with Copilot API:', err);
-      dispatch(setError('Failed to reach AIVOA Copilot API.'));
-      dispatch(
-        addMessage({
-          sender: 'assistant',
-          content: 'Sorry, I ran into a network or server issue trying to process your complaint request.',
-          isError: true,
-        })
-      );
-    } finally {
-      dispatch(setProcessing(false));
-    }
+    const activeComplaintId = currentComplaint?.id || null;
+    dispatch(sendCopilotMessageThunk({ message: userMsg, complaintId: activeComplaintId }));
   };
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Reset file input value so user can upload same file again if desired
     e.target.value = '';
 
-    dispatch(addMessage({ sender: 'user', content: `Uploaded document: ${file.name}` }));
-    dispatch(setProcessing(true));
-    dispatch(setError(null));
-    dispatch(setExtractionStatus('uploading'));
-    dispatch(setDocumentError(null));
-
-    try {
-      const activeComplaintId = currentComplaint?.id || null;
-      const response = await uploadCopilotDocument(file, activeComplaintId);
-
-      if (!response.success) {
-        dispatch(setExtractionStatus('error'));
-        dispatch(setDocumentError(response.error || response.message));
-        dispatch(
-          addMessage({
-            sender: 'assistant',
-            content: response.message || 'Failed to extract text from document.',
-            isError: true,
-          })
-        );
-        return;
-      }
-
-      dispatch(
-        addMessage({
-          sender: 'assistant',
-          content: response.message,
-          intent: response.intent,
-        })
-      );
-
-      if (response.complaint) {
-        dispatch(setComplaint(response.complaint));
-      }
-      if (response.risk_assessment) {
-        dispatch(setRiskAssessment(response.risk_assessment));
-      }
-      if (response.document) {
-        dispatch(setUploadedFile(response.document));
-      }
-      if (response.updated_fields) {
-        dispatch(setUpdatedFields(response.updated_fields));
-      }
-
-      dispatch(setExtractionStatus('extracted'));
-    } catch (err) {
-      console.error('Failed to process document upload:', err);
-      dispatch(setExtractionStatus('error'));
-      dispatch(setDocumentError(err.message || 'Document upload failed.'));
-      dispatch(
-        addMessage({
-          sender: 'assistant',
-          content: `Document processing failed: ${err.message || 'Unable to process file.'}`,
-          isError: true,
-        })
-      );
-    } finally {
-      dispatch(setProcessing(false));
-    }
+    const activeComplaintId = currentComplaint?.id || null;
+    dispatch(uploadCopilotDocumentThunk({ file, complaintId: activeComplaintId }));
   };
 
   return (

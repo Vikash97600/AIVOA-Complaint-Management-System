@@ -19,8 +19,9 @@ export const documentSlice = createSlice({
     setDocumentError: (state, action) => {
       state.error = action.payload;
     },
+    resetDocumentState: () => initialState,
   },
 });
 
-export const { setUploadedFile, setExtractionStatus, setDocumentError } = documentSlice.actions;
+export const { setUploadedFile, setExtractionStatus, setDocumentError, resetDocumentState } = documentSlice.actions;
 export default documentSlice.reducer;
