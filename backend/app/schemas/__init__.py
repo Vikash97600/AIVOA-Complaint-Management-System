@@ -16,6 +16,7 @@ from app.schemas.document import (
     ComplaintDocumentResponse,
 )
 from app.schemas.ledger import QMSLedgerResponse
+from app.schemas.copilot import CopilotMessageRequest, CopilotResponse
 
 __all__ = [
     "APIMessage",
@@ -32,4 +33,6 @@ __all__ = [
     "ComplaintDocumentCreate",
     "ComplaintDocumentResponse",
     "QMSLedgerResponse",
+    "CopilotMessageRequest",
+    "CopilotResponse",
 ]

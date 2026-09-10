@@ -16,6 +16,60 @@ AIVOA is an enterprise-grade AI-powered Quality Management System (QMS) prototyp
 
 ---
 
+## AI Architecture (LangGraph Orchestration)
+
+AIVOA uses **LangGraph** (`StateGraph`) to manage stateful AI agent workflows.
+
+```text
+                         React Frontend
+                               |
+                               | HTTP POST /api/copilot/message
+                               ↓
+                         FastAPI API
+                               |
+                               ↓
+                       Copilot Service
+                               |
+                               ↓
+                      ┌─────────────────┐
+                      │   LangGraph     │
+                      │                 │
+                      │ classifier      │
+                      │      ↓          │
+                      │  conditional    │
+                      │    routing      │
+                      │      ↓          │
+                      │ ┌────┼─────┐    │
+                      │ ↓    ↓     ↓    │
+                      │Log  Edit Document
+                      │ │    │      │   │
+                      │ └────┼──────┘   │
+                      │      ↓          │
+                      │ Risk Assessment │
+                      │      ↓          │
+                      │ Response        │
+                      │ Synthesis       │
+                      └─────────────────┘
+                               |
+                               ↓
+                      Structured Response
+                               |
+                               ↓
+                         React UI
+```
+
+### Graph Execution Nodes
+1. **`classifier` (`classifier_node`)**: Evaluates incoming message content to route to target workflow branch.
+2. **`log_complaint` (`log_complaint_node`)**: Interface for new complaint entity extraction (Log Complaint Tool).
+3. **`edit_complaint` (`edit_complaint_node`)**: Interface for partial delta field extraction and merging (Edit Complaint Tool).
+4. **`document_extraction` (`document_extract_node`)**: Interface for PDF text extraction and entity parsing.
+5. **`risk_assessment` (`risk_assessment_node`)**: Interface for quality risk triage scoring.
+6. **`response_synthesis` (`response_synthesis_node`)**: Formulates the final natural-language update for the Copilot chat.
+
+*Note: Groq-powered LLM processing (`gemma2-9b-it`) will be connected to these nodes in the next implementation stage (Prompt 6).*
+
+---
+
 ## Backend & Database Architecture
 
 The AIVOA backend is powered by **Python 3.11+**, **FastAPI**, **SQLAlchemy 2.0 (Async ORM)**, and **MySQL**.
@@ -24,7 +78,7 @@ The AIVOA backend is powered by **Python 3.11+**, **FastAPI**, **SQLAlchemy 2.0 
 - **API Framework:** FastAPI 0.110+ with OpenAPI Swagger (`/docs`) and ReDoc (`/redoc`).
 - **Async Database Driver:** `aiomysql` (`mysql+aiomysql://`) for non-blocking FastAPI async I/O.
 - **Sync Migration Driver:** `pymysql` (`mysql+pymysql://`) for Alembic database migrations.
-- **Data Validation:** Pydantic v2 schemas (`ComplaintCreate`, `ComplaintUpdate`, `ComplaintResponse`).
+- **Data Validation:** Pydantic v2 schemas (`ComplaintCreate`, `ComplaintUpdate`, `ComplaintResponse`, `CopilotMessageRequest`, `CopilotResponse`).
 - **Error Handling:** Custom exception handlers (`AIVOAException`, `ComplaintNotFoundError`) that log server errors without leaking database credentials or stack traces to clients.
 - **Correlation Tracking:** Middleware injecting unique `X-Request-ID` headers.
 
@@ -82,17 +136,21 @@ AIVOA/
 │
 ├── backend/              # Python 3.11+ FastAPI + MySQL (Port 8000)
 │   ├── app/
+│   │   ├── ai/           # LangGraph state graph, nodes & state definitions
+│   │   │   ├── nodes/    # classifier, log_complaint, edit_complaint, etc.
+│   │   │   ├── state.py  # AgentState TypedDict & Intent enum
+│   │   │   └── graph.py  # build_aivoa_graph() & compiled_graph
 │   │   ├── api/          # Central API Router (/api)
-│   │   │   ├── routes/   # health.py, complaints.py
+│   │   │   ├── routes/   # health.py, complaints.py, copilot.py
 │   │   │   └── router.py
 │   │   ├── core/         # config.py, exceptions.py, logging_config.py
 │   │   ├── database/     # models.py, session.py
-│   │   ├── schemas/      # common.py, complaint.py, risk.py, document.py, ledger.py
-│   │   ├── services/     # complaint_service.py (Async CRUD)
+│   │   ├── schemas/      # common.py, complaint.py, copilot.py, etc.
+│   │   ├── services/     # complaint_service.py, copilot_service.py
 │   │   ├── dependencies.py # get_db session generator & request_id
 │   │   └── main.py       # FastAPI application entry point
 │   ├── alembic/          # Alembic migrations (001_initial_schema)
-│   ├── tests/            # Pytest test suite (13 passing tests)
+│   ├── tests/            # Pytest test suite (23 passing tests)
 │   ├── requirements.txt
 │   └── .env.example
 │
@@ -125,6 +183,7 @@ uvicorn app.main:app --reload --port 8000
 
 - **API Documentation:** `http://localhost:8000/docs` (Swagger UI) or `http://localhost:8000/redoc` (ReDoc)
 - **API Base Route:** `http://localhost:8000/api`
+- **Copilot Message API:** `http://localhost:8000/api/copilot/message`
 - **Health Check:** `http://localhost:8000/api/health`
 
 ### 2. Frontend Setup
