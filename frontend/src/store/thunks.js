@@ -2,7 +2,28 @@ import { createAsyncThunk } from '@reduxjs/toolkit';
 import { setComplaint, setRiskAssessment, setUpdatedFields, resetComplaint } from './complaintSlice';
 import { addMessage, setProcessing, setError, clearMessages } from './copilotSlice';
 import { setUploadedFile, setExtractionStatus, setDocumentError, resetDocumentState } from './documentSlice';
-import { sendCopilotMessage, uploadCopilotDocument, commitComplaint } from '../services/api';
+import { getComplaint, sendCopilotMessage, uploadCopilotDocument, commitComplaint } from '../services/api';
+
+export const fetchComplaintThunk = createAsyncThunk(
+  'complaint/fetchById',
+  async (complaintId, { dispatch }) => {
+    dispatch(setProcessing(true));
+    try {
+      const complaintData = await getComplaint(complaintId);
+      dispatch(setComplaint(complaintData));
+      if (complaintData.risk_assessment) {
+        dispatch(setRiskAssessment(complaintData.risk_assessment));
+      }
+      return complaintData;
+    } catch (err) {
+      console.error('Failed in fetchComplaintThunk:', err);
+      dispatch(setError(err.message));
+      throw err;
+    } finally {
+      dispatch(setProcessing(false));
+    }
+  }
+);
 
 export const sendCopilotMessageThunk = createAsyncThunk(
   'copilot/sendMessage',
