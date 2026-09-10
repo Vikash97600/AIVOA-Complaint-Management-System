@@ -58,10 +58,31 @@ export const uploadCopilotDocument = async (file, complaintId = null) => {
   }
 };
 
+export const commitComplaint = async (complaintId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/complaints/${complaintId}/commit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.detail || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Commit complaint API request failed:', error);
+    throw error;
+  }
+};
+
 export default {
   API_BASE_URL,
   checkHealth,
   sendCopilotMessage,
   uploadCopilotDocument,
+  commitComplaint,
 };
+
 

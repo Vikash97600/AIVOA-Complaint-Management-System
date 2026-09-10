@@ -54,3 +54,16 @@ async def update_complaint_endpoint(
     """
     complaint = await complaint_service.update_complaint(db, complaint_id, payload)
     return complaint
+
+@router.post("/{complaint_id}/commit", response_model=ComplaintResponse, status_code=status.HTTP_200_OK)
+async def commit_complaint_endpoint(
+    complaint_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Formally commits a draft complaint to the QMS Ledger, generates a unique QMS reference number,
+    and freezes payload snapshot.
+    """
+    complaint = await complaint_service.commit_complaint_to_qms(db, complaint_id)
+    return complaint
+
