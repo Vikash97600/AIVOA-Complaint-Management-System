@@ -318,42 +318,114 @@ AIVOA/
 
 ---
 
+### Bonus AI Complaint Assistance Tools (Prompt 15)
+
+1. **Complaint Completeness Checker**: Evaluates complaint data against required and optional QMS fields, producing a **0–100% Completeness Score** (e.g. *85% - Mostly Complete*) along with missing field warnings and QA recommendations.
+2. **Duplicate Complaint Detection**: Searches existing records in MySQL based on product, batch, customer, and defect similarity without external vector DB dependencies, generating advisory similarity alerts (e.g. *Matches QMS-2026-000001*).
+3. **Executive Complaint Summary**: Generates concise, professional summaries using `gemma2-9b-it` / `llama-3.3-70b-versatile` for QA review and executive handoff.
+4. **AI Quality Risk Classification**: Visual preliminary quality triage badges (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`), quarantine recommendations, and risk rationales.
+
+---
+
+## QMS Ledger Commit Workflow (Prompt 14)
+
+AIVOA enforces strict lifecycle management for customer complaints:
+1. **DRAFT Status**: Newly logged complaints remain in `DRAFT` status and can be conversationally edited via the Copilot.
+2. **Commit Action**: When the reviewer confirms complaint accuracy and clicks **🔒 Commit to QMS Ledger**:
+   - Generates a server-side unique QMS Reference Number (`QMS-YYYY-XXXXXX`).
+   - Freezes a full JSON snapshot (`frozen_payload_json`) of complaint details, risk assessment, and document metadata into the `qms_ledger` table.
+   - Transitions status to `COMMITTED`.
+3. **Immutability Enforcement**: Once committed, subsequent REST edits (`PATCH /api/complaints/{id}`) or Copilot update requests are strictly rejected on both backend and frontend.
+
+---
+
+## API Endpoints Reference
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/health` | Service health status check |
+| `POST` | `/api/copilot/message` | Process natural language prompts through LangGraph AI Agent |
+| `POST` | `/api/copilot/document` | Extract complaint details from uploaded PDF, TXT, or EML document |
+| `POST` | `/api/complaints` | Create a new DRAFT complaint directly |
+| `GET` | `/api/complaints` | List complaints with pagination |
+| `GET` | `/api/complaints/{id}` | Retrieve single complaint by UUID |
+| `PATCH` | `/api/complaints/{id}` | Update partial complaint delta fields |
+| `POST` | `/api/complaints/{id}/commit` | Formally commit DRAFT complaint to QMS Ledger |
+| `GET` | `/api/complaints/{id}/qms` | Retrieve frozen QMS Ledger snapshot |
+| `POST` | `/api/complaints/{id}/completeness` | Run AI Complaint Completeness assessment |
+| `POST` | `/api/complaints/{id}/duplicates` | Search candidate duplicate complaints in MySQL |
+| `POST` | `/api/complaints/{id}/summary` | Generate executive complaint summary |
+
+---
+
+## Demo Script Walkthrough
+
+### Scenario 1: Log Apollo Pharmacy Complaint via Chat
+1. Open `http://localhost:5173`.
+2. In the **AIVOA Copilot** chat input, enter:
+   > *"Apollo Pharmacy reported 12 discolored capsules in Amoxicillin Capsules 500 mg, batch AMX240602, manufacturing March 2026, expiry February 2028."*
+3. Observe the left-hand **Complaint Form** auto-populate with extracted fields and the **AI Risk Triage Card** display **HIGH** severity and quarantine recommendation.
+
+### Scenario 2: Edit Complaint Details Conversationally
+1. In the chat input, type:
+   > *"Change batch number to BMX240602 and affected quantity to 48 capsules."*
+2. Confirm the form updates only the batch number and quantity while preserving all other customer/product fields.
+
+### Scenario 3: Upload Complaint Document
+1. Drag & drop a `.pdf`, `.eml`, or `.txt` complaint document into the Copilot Document Upload area.
+2. Verify extracted metadata, text, and preliminary quality risk triage.
+
+### Scenario 4: Commit to QMS Ledger
+1. Click **🔒 Commit to QMS Ledger** in the left panel.
+2. Confirm assigned **QMS Reference Number** (e.g. `QMS-2026-000001`) and read-only committed state.
+
+---
+
 ## Getting Started
 
-### 1. Backend Setup & MySQL Migrations
+### 1. Database Setup (MySQL)
+Ensure local MySQL server is running and create the target database:
+```sql
+CREATE DATABASE IF NOT EXISTS aivoa;
+```
+
+### 2. Backend Setup
 ```bash
 cd backend
 python -m venv venv
-# Activate virtualenv
-# On Windows: venv\Scripts\activate
-# On Linux/macOS: source venv/bin/activate
 
+# Activate virtualenv (Windows)
+venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Configure .env file
 cp .env.example .env
-# Configure GROQ_API_KEY and DATABASE_URL (MySQL) in .env
-# Example: DATABASE_URL=mysql+aiomysql://root:password@localhost:3306/aivoa
 
 # Run database migrations
 alembic upgrade head
 
-# Run server
+# Start FastAPI development server
 uvicorn app.main:app --reload --port 8000
 ```
 
-- **API Documentation:** `http://localhost:8000/docs` (Swagger UI) or `http://localhost:8000/redoc` (ReDoc)
-- **API Base Route:** `http://localhost:8000/api`
-- **Copilot Message API:** `http://localhost:8000/api/copilot/message`
-- **Health Check:** `http://localhost:8000/api/health`
-
-### 2. Frontend Setup
+### 3. Frontend Setup
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-### 3. Run Test Suite
+### 4. Verification & Testing Commands
 ```bash
+# Run backend pytest test suite with coverage
 cd backend
-pytest
+pytest --cov=app
+
+# Run frontend linting & production build
+cd frontend
+npm run lint
+npm run build
 ```
+
