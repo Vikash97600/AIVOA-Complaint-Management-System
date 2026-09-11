@@ -5,6 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
 from app.schemas.complaint import ComplaintCreate, ComplaintUpdate, ComplaintResponse
 from app.schemas.ledger import QMSCommitRequest, QMSLedgerResponse
+from app.schemas.completeness import CompletenessResponse
+from app.schemas.duplicate import DuplicateDetectionResponse
+from app.schemas.summary import ComplaintSummaryResponse
 from app.schemas.common import PaginatedResponse
 from app.services import complaint_service
 
@@ -94,4 +97,44 @@ async def get_complaint_qms_ledger_endpoint(
     if not ledger_entry:
         raise ComplaintNotFoundError(complaint_id)
     return ledger_entry
+
+@router.post("/{complaint_id}/completeness", response_model=CompletenessResponse, status_code=status.HTTP_200_OK)
+async def check_complaint_completeness_endpoint(
+    complaint_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Evaluates complaint detail completeness and missing field warnings.
+    """
+    from app.services import completeness_service, complaint_service
+    complaint = await complaint_service.get_complaint_by_id(db, complaint_id)
+    complaint_dict = ComplaintResponse.model_validate(complaint).model_dump(mode="json")
+    return completeness_service.calculate_completeness(complaint_dict)
+
+@router.post("/{complaint_id}/duplicates", response_model=DuplicateDetectionResponse, status_code=status.HTTP_200_OK)
+async def detect_duplicate_complaints_endpoint(
+    complaint_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Searches candidate complaints in MySQL for potential duplicate matches.
+    """
+    from app.services import duplicate_detection_service, complaint_service
+    complaint = await complaint_service.get_complaint_by_id(db, complaint_id)
+    complaint_dict = ComplaintResponse.model_validate(complaint).model_dump(mode="json")
+    return await duplicate_detection_service.detect_duplicate_complaints(db, complaint_dict, complaint_id)
+
+@router.post("/{complaint_id}/summary", response_model=ComplaintSummaryResponse, status_code=status.HTTP_200_OK)
+async def generate_complaint_summary_endpoint(
+    complaint_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Generates a concise executive complaint summary using Groq gemma2-9b-it.
+    """
+    from app.services import summary_service, complaint_service
+    complaint = await complaint_service.get_complaint_by_id(db, complaint_id)
+    complaint_dict = ComplaintResponse.model_validate(complaint).model_dump(mode="json")
+    risk_dict = complaint_dict.get("risk_assessment")
+    return await summary_service.generate_complaint_summary(complaint_dict, risk_dict)
 

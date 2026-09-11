@@ -99,9 +99,14 @@ async def process_copilot_message(
                 logger.error(f"Failed to persist complaint data to database: {db_err}", exc_info=True)
                 err_msg = err_msg or "Failed to save complaint state to database."
 
+        target_complaint_id = saved_entity.id if saved_entity else request.complaint_id
+
+        if not extracted_risk and target_complaint_id and extracted_complaint:
+            from app.ai.nodes.risk_assessment import generate_fallback_risk_assessment
+            extracted_risk = generate_fallback_risk_assessment(extracted_complaint)
+
         # Database Persistence 2: Create or Update RiskAssessment
-        if extracted_risk and isinstance(extracted_risk, dict) and (saved_entity or request.complaint_id):
-            target_complaint_id = saved_entity.id if saved_entity else request.complaint_id
+        if extracted_risk and isinstance(extracted_risk, dict) and target_complaint_id:
             try:
                 risk_create_in = RiskAssessmentCreate(**extracted_risk)
                 saved_risk_entity = await save_or_update_risk_assessment(
@@ -112,6 +117,7 @@ async def process_copilot_message(
             except Exception as risk_db_err:
                 logger.error(f"Failed to persist RiskAssessment to database: {risk_db_err}", exc_info=True)
 
+
         # Refresh existing_complaint_obj if entity was updated or created
         if saved_entity:
             refreshed = await complaint_service.get_complaint_by_id(db, saved_entity.id)
@@ -119,11 +125,36 @@ async def process_copilot_message(
             if refreshed.risk_assessment:
                 risk_assessment_obj = RiskAssessmentResponse.model_validate(refreshed.risk_assessment)
 
+        # Handle CHECK_DUPLICATE intent requiring DB session
+        if detected_intent == Intent.CHECK_DUPLICATE:
+            from app.services.duplicate_detection_service import detect_duplicate_complaints
+            dup_eval = await detect_duplicate_complaints(db, current_complaint_dict or {}, request.complaint_id)
+            final_state["duplicate_result"] = dup_eval.model_dump(mode="json")
+            response_msg = dup_eval.summary_reasoning
+
+        completeness_obj = None
+        if final_state.get("completeness_result"):
+            from app.schemas.completeness import CompletenessResponse
+            completeness_obj = CompletenessResponse.model_validate(final_state["completeness_result"])
+
+        duplicate_obj = None
+        if final_state.get("duplicate_result"):
+            from app.schemas.duplicate import DuplicateDetectionResponse
+            duplicate_obj = DuplicateDetectionResponse.model_validate(final_state["duplicate_result"])
+
+        summary_obj = None
+        if final_state.get("summary_result"):
+            from app.schemas.summary import ComplaintSummaryResponse
+            summary_obj = ComplaintSummaryResponse.model_validate(final_state["summary_result"])
+
         return CopilotResponse(
             message=response_msg,
             intent=intent_str,
             complaint=existing_complaint_obj,
             risk_assessment=risk_assessment_obj,
+            completeness=completeness_obj,
+            duplicate_detection=duplicate_obj,
+            summary=summary_obj,
             updated_fields=updated_fields,
             error=err_msg,
         )
@@ -259,6 +290,10 @@ async def process_copilot_document(
             except Exception as doc_db_err:
                 logger.error(f"Failed to persist ComplaintDocument record: {doc_db_err}", exc_info=True)
 
+        if not extracted_risk and target_complaint_id and extracted_complaint:
+            from app.ai.nodes.risk_assessment import generate_fallback_risk_assessment
+            extracted_risk = generate_fallback_risk_assessment(extracted_complaint)
+
         # Persist RiskAssessment record if available
         if extracted_risk and isinstance(extracted_risk, dict) and target_complaint_id:
             try:
@@ -267,6 +302,7 @@ async def process_copilot_document(
                 risk_assessment_obj = RiskAssessmentResponse.model_validate(saved_risk)
             except Exception as risk_err:
                 logger.error(f"Failed to save RiskAssessment for document complaint: {risk_err}", exc_info=True)
+
 
         if saved_entity:
             refreshed = await complaint_service.get_complaint_by_id(db, saved_entity.id)

@@ -3,6 +3,9 @@ from typing import Optional, List
 from app.schemas.complaint import ComplaintResponse
 from app.schemas.risk import RiskAssessmentResponse
 from app.schemas.document import ComplaintDocumentResponse
+from app.schemas.completeness import CompletenessResponse
+from app.schemas.duplicate import DuplicateDetectionResponse
+from app.schemas.summary import ComplaintSummaryResponse
 
 class CopilotMessageRequest(BaseModel):
     message: str = Field(..., description="Natural language prompt or update request from the user")
@@ -15,6 +18,9 @@ class CopilotResponse(BaseModel):
     complaint: Optional[ComplaintResponse] = Field(None, description="Structured complaint state object")
     risk_assessment: Optional[RiskAssessmentResponse] = Field(None, description="AI-assisted quality risk assessment object")
     document: Optional[ComplaintDocumentResponse] = Field(None, description="Processed complaint document metadata")
+    completeness: Optional[CompletenessResponse] = Field(None, description="AI Complaint Completeness Assessment")
+    duplicate_detection: Optional[DuplicateDetectionResponse] = Field(None, description="Duplicate Complaint Detection Analysis")
+    summary: Optional[ComplaintSummaryResponse] = Field(None, description="AI-generated Executive Complaint Summary")
     updated_fields: List[str] = Field(default_factory=list, description="List of modified complaint attributes")
     error: Optional[str] = Field(None, description="Error details if execution failed")
 

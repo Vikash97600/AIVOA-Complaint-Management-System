@@ -1,4 +1,5 @@
-from pydantic import BaseModel, Field
+from typing import Any
+from pydantic import BaseModel, Field, field_validator
 from app.database.models import RiskSeverity
 
 class RiskAssessmentOutput(BaseModel):
@@ -18,6 +19,19 @@ class RiskAssessmentOutput(BaseModel):
     requires_quarantine: bool = Field(
         ..., description="Boolean flag indicating if material isolation/quarantine is suggested pending investigation (true/false)."
     )
+
+    @field_validator("severity_suggested", mode="before")
+    @classmethod
+    def validate_severity(cls, v: Any) -> RiskSeverity:
+        if isinstance(v, RiskSeverity):
+            return v
+        if isinstance(v, str):
+            v_upper = v.strip().upper()
+            for s in RiskSeverity:
+                if s.value in v_upper:
+                    return s
+        return RiskSeverity.MEDIUM
+
 
 
 RISK_ASSESSMENT_SYSTEM_PROMPT = """You are an expert pharmaceutical Quality Assurance Risk Triage Assistant for AIVOA (AI-Powered Customer Complaint Management System).

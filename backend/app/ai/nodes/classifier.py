@@ -49,7 +49,13 @@ async def classifier_node(state: AgentState) -> Dict[str, Any]:
             f"Groq LLM intent classification failed ({e}). Utilizing fallback rule-based classification."
         )
         msg_lower = last_message.lower()
-        if any(k in msg_lower for k in ["edit", "change", "correct", "update", "sorry, batch", "batch number is"]):
+        if any(k in msg_lower for k in ["complete", "completeness", "missing fields", "ready for qms"]):
+            fallback_intent = Intent.CHECK_COMPLETENESS
+        elif any(k in msg_lower for k in ["duplicate", "already exists", "already recorded", "existing complaint"]):
+            fallback_intent = Intent.CHECK_DUPLICATE
+        elif any(k in msg_lower for k in ["summarize", "summary", "executive overview", "recap"]):
+            fallback_intent = Intent.GENERATE_SUMMARY
+        elif any(k in msg_lower for k in ["edit", "change", "correct", "update", "sorry, batch", "batch number is"]):
             fallback_intent = Intent.EDIT_COMPLAINT
         elif any(k in msg_lower for k in ["upload", "pdf", "document", "extract information from this pdf"]):
             fallback_intent = Intent.DOCUMENT_EXTRACTION

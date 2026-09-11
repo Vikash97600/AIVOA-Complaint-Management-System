@@ -3,6 +3,9 @@ import { createSlice } from '@reduxjs/toolkit';
 const initialState = {
   currentComplaint: null,
   riskAssessment: null,
+  completeness: null,
+  duplicateDetection: null,
+  summary: null,
   status: 'idle', // 'idle' | 'draft' | 'committed'
   qmsReferenceNumber: null,
   updatedFields: [],
@@ -24,6 +27,15 @@ export const complaintSlice = createSlice({
     setRiskAssessment: (state, action) => {
       state.riskAssessment = action.payload;
     },
+    setCompleteness: (state, action) => {
+      state.completeness = action.payload;
+    },
+    setDuplicateDetection: (state, action) => {
+      state.duplicateDetection = action.payload;
+    },
+    setSummary: (state, action) => {
+      state.summary = action.payload;
+    },
     setUpdatedFields: (state, action) => {
       state.updatedFields = action.payload || [];
     },
@@ -43,6 +55,9 @@ export const complaintSlice = createSlice({
 export const {
   setComplaint,
   setRiskAssessment,
+  setCompleteness,
+  setDuplicateDetection,
+  setSummary,
   setUpdatedFields,
   setStatus,
   setComplaintLoading,

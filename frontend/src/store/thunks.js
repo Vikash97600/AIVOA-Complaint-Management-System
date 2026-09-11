@@ -1,8 +1,24 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import { setComplaint, setRiskAssessment, setUpdatedFields, resetComplaint } from './complaintSlice';
+import {
+  setComplaint,
+  setRiskAssessment,
+  setCompleteness,
+  setDuplicateDetection,
+  setSummary,
+  setUpdatedFields,
+  resetComplaint,
+} from './complaintSlice';
 import { addMessage, setProcessing, setError, clearMessages } from './copilotSlice';
 import { setUploadedFile, setExtractionStatus, setDocumentError, resetDocumentState } from './documentSlice';
-import { getComplaint, sendCopilotMessage, uploadCopilotDocument, commitComplaint } from '../services/api';
+import {
+  getComplaint,
+  sendCopilotMessage,
+  uploadCopilotDocument,
+  commitComplaint,
+  checkCompleteness,
+  detectDuplicates,
+  generateSummary,
+} from '../services/api';
 
 export const fetchComplaintThunk = createAsyncThunk(
   'complaint/fetchById',
@@ -18,6 +34,57 @@ export const fetchComplaintThunk = createAsyncThunk(
     } catch (err) {
       console.error('Failed in fetchComplaintThunk:', err);
       dispatch(setError(err.message));
+      throw err;
+    } finally {
+      dispatch(setProcessing(false));
+    }
+  }
+);
+
+export const checkCompletenessThunk = createAsyncThunk(
+  'complaint/checkCompleteness',
+  async (complaintId, { dispatch }) => {
+    dispatch(setProcessing(true));
+    try {
+      const data = await checkCompleteness(complaintId);
+      dispatch(setCompleteness(data));
+      return data;
+    } catch (err) {
+      console.error('Failed in checkCompletenessThunk:', err);
+      throw err;
+    } finally {
+      dispatch(setProcessing(false));
+    }
+  }
+);
+
+export const detectDuplicatesThunk = createAsyncThunk(
+  'complaint/detectDuplicates',
+  async (complaintId, { dispatch }) => {
+    dispatch(setProcessing(true));
+    try {
+      const data = await detectDuplicates(complaintId);
+      dispatch(setDuplicateDetection(data));
+      return data;
+    } catch (err) {
+      console.error('Failed in detectDuplicatesThunk:', err);
+      throw err;
+    } finally {
+      dispatch(setProcessing(false));
+    }
+  }
+);
+
+export const generateSummaryThunk = createAsyncThunk(
+  'complaint/generateSummary',
+  async (complaintId, { dispatch }) => {
+    dispatch(setProcessing(true));
+    try {
+      const data = await generateSummary(complaintId);
+      dispatch(setSummary(data));
+      return data;
+    } catch (err) {
+      console.error('Failed in generateSummaryThunk:', err);
       throw err;
     } finally {
       dispatch(setProcessing(false));
@@ -48,6 +115,15 @@ export const sendCopilotMessageThunk = createAsyncThunk(
       }
       if (response.risk_assessment !== undefined) {
         dispatch(setRiskAssessment(response.risk_assessment));
+      }
+      if (response.completeness) {
+        dispatch(setCompleteness(response.completeness));
+      }
+      if (response.duplicate_detection) {
+        dispatch(setDuplicateDetection(response.duplicate_detection));
+      }
+      if (response.summary) {
+        dispatch(setSummary(response.summary));
       }
       if (response.updated_fields) {
         dispatch(setUpdatedFields(response.updated_fields));
@@ -112,6 +188,15 @@ export const uploadCopilotDocumentThunk = createAsyncThunk(
       }
       if (response.document) {
         dispatch(setUploadedFile(response.document));
+      }
+      if (response.completeness) {
+        dispatch(setCompleteness(response.completeness));
+      }
+      if (response.duplicate_detection) {
+        dispatch(setDuplicateDetection(response.duplicate_detection));
+      }
+      if (response.summary) {
+        dispatch(setSummary(response.summary));
       }
       if (response.updated_fields) {
         dispatch(setUpdatedFields(response.updated_fields));

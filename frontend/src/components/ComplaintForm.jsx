@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { RiskAssessmentCard } from './RiskAssessmentCard';
+import { AIInsightsPanel } from './AIInsightsPanel';
 import { CommitQMSButton } from './qms/CommitQMSButton';
 
 export function ComplaintForm() {
@@ -109,6 +110,10 @@ export function ComplaintForm() {
 
       <div className="form-section risk-section-wrapper">
         <RiskAssessmentCard />
+      </div>
+
+      <div className="form-section insights-section-wrapper">
+        <AIInsightsPanel />
       </div>
 
       <div className="form-section qms-section-wrapper">

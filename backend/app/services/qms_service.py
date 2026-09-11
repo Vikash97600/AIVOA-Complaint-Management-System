@@ -139,14 +139,25 @@ async def commit_complaint_to_ledger(
     5. Updates complaint status to COMMITTED
     6. Commits transaction atomically
     """
-    complaint = await complaint_service.get_complaint_by_id(db, complaint_id)
+    complaint_uuid = uuid.UUID(str(complaint_id)) if isinstance(complaint_id, str) else complaint_id
+    complaint = await complaint_service.get_complaint_by_id(db, complaint_uuid)
 
     if complaint.status == ComplaintStatus.COMMITTED:
-        logger.info(f"Complaint '{complaint_id}' is already committed to QMS Ledger.")
+        logger.info(f"Complaint '{complaint_uuid}' is already committed to QMS Ledger.")
         return complaint
 
-    if isinstance(complaint_id, str):
-        complaint_id = uuid.UUID(complaint_id)
+    if not complaint.risk_assessment:
+        logger.info(f"Risk assessment missing for complaint '{complaint_uuid}' prior to commit. Auto-generating preliminary triage...")
+        from app.schemas.complaint import ComplaintResponse
+        from app.schemas.risk import RiskAssessmentCreate
+        from app.ai.nodes.risk_assessment import generate_fallback_risk_assessment
+        from app.services.risk_assessment_service import save_or_update_risk_assessment
+
+        complaint_dict = ComplaintResponse.model_validate(complaint).model_dump(mode="json")
+        fallback_risk = generate_fallback_risk_assessment(complaint_dict)
+        risk_create_in = RiskAssessmentCreate(**fallback_risk)
+        await save_or_update_risk_assessment(db, complaint_uuid, risk_create_in)
+        complaint = await complaint_service.get_complaint_by_id(db, complaint_uuid)
 
     validate_for_commit(complaint)
 
@@ -156,12 +167,13 @@ async def commit_complaint_to_ledger(
 
     try:
         ledger_entry = QMSLedger(
-            complaint_id=complaint_id,
+            complaint_id=complaint_uuid,
             qms_reference_number=qms_ref,
             committed_at=commit_time,
             frozen_payload_json=frozen_payload,
         )
         db.add(ledger_entry)
+
 
         complaint.status = ComplaintStatus.COMMITTED
         complaint.qms_reference_number = qms_ref

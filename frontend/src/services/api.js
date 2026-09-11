@@ -126,6 +126,54 @@ export const listComplaints = async (page = 1, pageSize = 20) => {
   }
 };
 
+export const checkCompleteness = async (complaintId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/complaints/${complaintId}/completeness`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.detail || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    handleFetchError(error, 'Check completeness API request failed');
+  }
+};
+
+export const detectDuplicates = async (complaintId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/complaints/${complaintId}/duplicates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.detail || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    handleFetchError(error, 'Detect duplicates API request failed');
+  }
+};
+
+export const generateSummary = async (complaintId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/complaints/${complaintId}/summary`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.detail || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    handleFetchError(error, 'Generate summary API request failed');
+  }
+};
+
 export default {
   API_BASE_URL,
   checkHealth,
@@ -135,6 +183,9 @@ export default {
   getComplaint,
   updateComplaint,
   listComplaints,
+  checkCompleteness,
+  detectDuplicates,
+  generateSummary,
 };
 
 

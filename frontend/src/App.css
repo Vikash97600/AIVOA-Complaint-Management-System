@@ -723,4 +723,279 @@ body {
   line-height: 1.5;
 }
 
+/* AI Insights Panel Styling */
+.ai-insights-container {
+  margin-top: 16px;
+  background-color: #0f172a88;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.insights-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.insights-header h4 {
+  font-size: 0.95rem;
+  color: #38bdf8;
+  font-weight: 600;
+  margin: 0;
+}
+
+.insights-pill {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #a855f7;
+  background-color: #7e22ce22;
+  border: 1px solid #7e22ce44;
+  padding: 2px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+}
+
+.insights-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.insight-card {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-top-row h5 {
+  font-size: 0.85rem;
+  color: #f1f5f9;
+  font-weight: 600;
+  margin: 0;
+}
+
+.insight-action-btn {
+  background-color: #0284c7;
+  color: #ffffff;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.insight-action-btn:hover:not(:disabled) {
+  background-color: #0369a1;
+}
+
+.insight-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Completeness card styles */
+.completeness-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.score-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.score-badge-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
+}
+
+.score-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.status-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.label-complete { color: #34d399; }
+.label-mostly-complete { color: #38bdf8; }
+.label-incomplete { color: #fbbf24; }
+.label-highly-incomplete { color: #f87171; }
+
+.sub-hint {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+.missing-fields-box label {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+
+}
+
+.tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.field-tag {
+  font-size: 0.7rem;
+  background-color: #ef444422;
+  color: #f87171;
+  border: 1px solid #ef444444;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.recommendations-list {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  padding-left: 16px;
+  margin: 0;
+}
+
+/* Duplicate card styles */
+.duplicate-banner {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.duplicate-warn {
+  background-color: #ef444415;
+  border: 1px solid #ef444444;
+}
+
+.duplicate-clean {
+  background-color: #10b98115;
+  border: 1px solid #10b98144;
+}
+
+.dup-status-title {
+  font-weight: 700;
+  font-size: 0.8rem;
+
+}
+
+.duplicate-warn .dup-status-title { color: #f87171; }
+.duplicate-clean .dup-status-title { color: #34d399; }
+
+.dup-reasoning {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+
+.candidate-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.candidate-list label {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+}
+
+.candidate-item {
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  padding: 6px 10px;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.candidate-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+
+.cand-ref {
+  font-family: monospace;
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.cand-score {
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.cand-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.reason-pill {
+  font-size: 0.65rem;
+  background-color: #334155;
+  color: #cbd5e1;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* Summary card styles */
+.summary-paragraph {
+  font-size: 0.8rem;
+  color: #e2e8f0;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.key-facts-box label {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.facts-list {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  padding-left: 16px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 

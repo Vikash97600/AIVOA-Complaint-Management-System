@@ -5,6 +5,46 @@ from app.services.groq_service import groq_service
 from app.core.logging_config import logger
 
 
+def generate_fallback_risk_assessment(current_complaint: Dict[str, Any]) -> Dict[str, Any]:
+    """Generates deterministic preliminary quality risk triage when Groq AI is unavailable."""
+    desc = str(current_complaint.get("complaint_description") or "").lower()
+    defect = str(current_complaint.get("defect_type") or "").lower()
+    category = str(current_complaint.get("complaint_category") or "").lower()
+
+    combined = f"{desc} {defect} {category}"
+
+    if any(k in combined for k in ["contaminat", "foreign", "particle", "toxic", "glass", "seal breach", "expired"]):
+        severity = "CRITICAL"
+        quarantine = True
+        action = "Immediate QA escalation and quarantine affected batch/material."
+        details = "Critical quality/safety concern detected in complaint details requiring immediate quarantine."
+    elif any(k in combined for k in ["discolor", "color", "broken", "chip", "potency", "strength", "physical", "defect"]):
+        severity = "HIGH"
+        quarantine = True
+        action = "Quarantine material and route to QA Investigation for retain sample testing."
+        details = "Significant product defect or physical degradation observed requiring QA investigation."
+    elif any(k in combined for k in ["packag", "label", "box", "carton", "count", "quantity", "missing"]):
+        severity = "MEDIUM"
+        quarantine = False
+        action = "Route to QA Review for packaging/labeling assessment."
+        details = "Packaging, labeling, or quantity variance requiring standard QA verification."
+    else:
+        severity = "LOW"
+        quarantine = False
+        action = "Route to QA Log for routine review."
+        details = "Preliminary complaint details requiring standard QA record-keeping."
+
+    cat_name = current_complaint.get("complaint_category") or current_complaint.get("defect_type") or "Product Defect"
+
+    return {
+        "severity_suggested": severity,
+        "complaint_category": cat_name,
+        "suggested_next_action": action,
+        "risk_details": details,
+        "requires_quarantine": quarantine,
+    }
+
+
 async def risk_assessment_node(state: AgentState) -> Dict[str, Any]:
     """
     AI Risk Assessment Node for LangGraph.
@@ -53,5 +93,7 @@ async def risk_assessment_node(state: AgentState) -> Dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Groq risk assessment triage failed in risk_assessment_node: {e}", exc_info=True)
-        # CRITICAL RULE: Never default to fake LOW/MEDIUM fallback severity if AI fails.
+        # CRITICAL RULE: Never default to fake LOW/MEDIUM fallback severity inside node if AI fails.
         return {"risk_assessment": None}
+
+
