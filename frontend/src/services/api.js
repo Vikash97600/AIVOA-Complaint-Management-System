@@ -4,8 +4,12 @@ const handleFetchError = (error, customMessage) => {
   if (error instanceof TypeError && error.message.includes('fetch')) {
     throw new Error('Unable to connect to AIVOA backend. Please make sure the backend server is running.');
   }
+  if (customMessage && !error.message) {
+    throw new Error(customMessage);
+  }
   throw error;
 };
+
 
 export const checkHealth = async () => {
   try {
