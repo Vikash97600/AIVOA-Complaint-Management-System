@@ -2,7 +2,7 @@ import uuid
 from typing import Tuple, List, Optional
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, func, desc, or_
 from app.database.models import Complaint, ComplaintStatus
 from app.schemas.complaint import ComplaintCreate, ComplaintUpdate
 from app.core.exceptions import ComplaintNotFoundError, DatabaseOperationError
@@ -47,26 +47,55 @@ async def get_complaint_by_id(db: AsyncSession, complaint_id: uuid.UUID | str) -
 
 
 async def list_complaints(
-    db: AsyncSession, page: int = 1, page_size: int = 20
+    db: AsyncSession,
+    page: int = 1,
+    page_size: int = 20,
+    status: Optional[str] = None,
+    search: Optional[str] = None
 ) -> Tuple[List[Complaint], int]:
-    """Lists complaints with pagination ordered by created_at descending."""
+    """Lists complaints with pagination, optional status/search filters, ordered by updated_at / created_at descending."""
     try:
         page = max(1, page)
         page_size = min(max(1, page_size), 100)
         offset = (page - 1) * page_size
 
+        filters = []
+        if status:
+            from app.database.models import ComplaintStatus
+            try:
+                status_enum = ComplaintStatus(status.upper())
+                filters.append(Complaint.status == status_enum)
+            except ValueError:
+                pass
+
+        if search and search.strip():
+            search_pattern = f"%{search.strip()}%"
+            filters.append(
+                or_(
+                    Complaint.customer_name.ilike(search_pattern),
+                    Complaint.product_name.ilike(search_pattern),
+                    Complaint.batch_number.ilike(search_pattern),
+                    Complaint.qms_reference_number.ilike(search_pattern),
+                )
+            )
+
         # Count total items
         count_stmt = select(func.count(Complaint.id))
+        if filters:
+            count_stmt = count_stmt.where(*filters)
         total_result = await db.execute(count_stmt)
         total = total_result.scalar_one() or 0
 
-        # Query paginated list
+        # Query paginated list ordered by updated_at DESC, then created_at DESC
         stmt = (
             select(Complaint)
-            .order_by(desc(Complaint.created_at))
+            .order_by(desc(Complaint.updated_at), desc(Complaint.created_at))
             .offset(offset)
             .limit(page_size)
         )
+        if filters:
+            stmt = stmt.where(*filters)
+
         result = await db.execute(stmt)
         items = list(result.scalars().all())
 

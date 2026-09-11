@@ -49,7 +49,7 @@ class ComplaintAlreadyCommittedError(AIVOAException):
         msg = f"Complaint '{complaint_id}' has already been committed to the QMS Ledger and cannot be edited." if complaint_id else "This complaint has already been committed to the QMS Ledger and cannot be edited."
         super().__init__(
             message=msg,
-            status_code=status.HTTP_400_BAD_REQUEST
+            status_code=status.HTTP_409_CONFLICT
         )
 
 class ComplaintNotReadyForCommitError(AIVOAException):

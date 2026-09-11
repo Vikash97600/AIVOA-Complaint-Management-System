@@ -117,9 +117,20 @@ export const updateComplaint = async (complaintId, patchData) => {
   }
 };
 
-export const listComplaints = async (page = 1, pageSize = 20) => {
+export const listComplaints = async (page = 1, pageSize = 20, status = null, search = null) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/complaints?page=${page}&page_size=${pageSize}`);
+    const params = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    if (status) {
+      params.append('status', status);
+    }
+    if (search && search.trim()) {
+      params.append('search', search.trim());
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/complaints?${params.toString()}`);
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
       throw new Error(errData.detail || `HTTP error! status: ${response.status}`);

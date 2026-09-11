@@ -45,6 +45,8 @@ export function CopilotPanel() {
     dispatch(uploadCopilotDocumentThunk({ file, complaintId: activeComplaintId }));
   };
 
+  const isCommitted = currentComplaint?.status === 'COMMITTED';
+
   return (
     <div className="copilot-panel-container">
       <div className="copilot-header">
@@ -98,34 +100,42 @@ export function CopilotPanel() {
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="copilot-input-form">
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileUpload}
-          accept=".pdf,.txt,.eml"
-          style={{ display: 'none' }}
-        />
-        <button
-          type="button"
-          className="doc-upload-btn"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isProcessing}
-          title="Upload Complaint Document (PDF, EML, TXT)"
-        >
-          📎 Document
-        </button>
-        <input
-          type="text"
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          placeholder="Describe complaint or upload document..."
-          disabled={isProcessing}
-        />
-        <button type="submit" disabled={isProcessing || !inputText.trim()}>
-          Send
-        </button>
-      </form>
+      {isCommitted ? (
+        <div className="copilot-committed-footer">
+          <p className="committed-footer-text">
+            🔒 <strong>Complaint Committed:</strong> This record is immutable in the QMS Ledger. New modifications or document uploads are locked.
+          </p>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="copilot-input-form">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            accept=".pdf,.txt,.eml"
+            style={{ display: 'none' }}
+          />
+          <button
+            type="button"
+            className="doc-upload-btn"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isProcessing}
+            title="Upload Complaint Document (PDF, EML, TXT)"
+          >
+            📎 Document
+          </button>
+          <input
+            type="text"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder="Describe complaint or edit details..."
+            disabled={isProcessing}
+          />
+          <button type="submit" disabled={isProcessing || !inputText.trim()}>
+            Send
+          </button>
+        </form>
+      )}
     </div>
   );
 }

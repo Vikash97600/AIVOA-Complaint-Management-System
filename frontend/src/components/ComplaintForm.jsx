@@ -1,35 +1,96 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
+import { Lock, History, Sparkles, AlertCircle } from 'lucide-react';
 import { RiskAssessmentCard } from './RiskAssessmentCard';
 import { AIInsightsPanel } from './AIInsightsPanel';
 import { CommitQMSButton } from './qms/CommitQMSButton';
+import {
+  selectCurrentComplaint,
+  selectUpdatedFields,
+  selectDetailLoading,
+  selectDetailError,
+} from '../store/selectors';
 
-export function ComplaintForm() {
-  const currentComplaint = useSelector((state) => state.complaint.currentComplaint);
-  const updatedFields = useSelector((state) => state.complaint.updatedFields) || [];
+export function ComplaintForm({ onOpenHistory }) {
+  const currentComplaint = useSelector(selectCurrentComplaint);
+  const updatedFields = useSelector(selectUpdatedFields) || [];
+  const detailLoading = useSelector(selectDetailLoading);
+  const detailError = useSelector(selectDetailError);
 
   const getFieldClass = (fieldName) => {
     return updatedFields.includes(fieldName) ? 'form-field updated-field' : 'form-field';
   };
 
-  if (!currentComplaint) {
+  if (detailLoading) {
     return (
-      <div className="complaint-form-container empty-state">
+      <div className="complaint-form-container empty-state loading-state">
         <div className="empty-state-card">
-          <h3>Log Customer Complaint</h3>
+          <div className="loading-spinner-circle" />
+          <h3>Loading Complaint Details...</h3>
           <p className="hint-text">
-            No active complaint record. Describe a customer complaint in the Copilot chat or upload a complaint document to auto-populate this form.
+            Retrieving persistent complaint, risk evaluation, and ledger records from MySQL.
           </p>
         </div>
       </div>
     );
   }
 
+  if (detailError) {
+    return (
+      <div className="complaint-form-container empty-state">
+        <div className="empty-state-card">
+          <AlertCircle size={36} className="error-icon" />
+          <h3>Unable to Load Complaint</h3>
+          <p className="hint-text">{detailError}</p>
+          {onOpenHistory && (
+            <button type="button" className="history-quick-btn" onClick={onOpenHistory}>
+              <History size={16} />
+              <span>Browse Existing Complaints</span>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentComplaint) {
+    return (
+      <div className="complaint-form-container empty-state">
+        <div className="empty-state-card">
+          <div className="empty-logo-box">
+            <Sparkles size={28} className="empty-sparkle-icon" />
+          </div>
+          <h3>Customer Complaint Workspace</h3>
+          <p className="hint-text">
+            No active complaint record loaded. Describe a complaint in the AI Copilot, upload a document, or select an existing record from Complaint History.
+          </p>
+          {onOpenHistory && (
+            <button type="button" className="history-quick-btn" onClick={onOpenHistory}>
+              <History size={16} />
+              <span>Browse Existing Complaints</span>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const isCommitted = currentComplaint.status === 'COMMITTED';
+
   return (
-    <div className="complaint-form-container">
+    <div className={`complaint-form-container ${isCommitted ? 'is-view-only' : ''}`}>
+      {isCommitted && (
+        <div className="committed-lock-banner">
+          <Lock size={16} className="lock-icon" />
+          <div className="banner-text">
+            <strong>COMMITTED RECORD — VIEW ONLY:</strong> This complaint has been frozen and permanently committed to the QMS Ledger ({currentComplaint.qms_reference_number}). Modifications are prohibited.
+          </div>
+        </div>
+      )}
+
       <div className="form-header">
         <div className="title-row">
-          <h3>Log Customer Complaint</h3>
+          <h3>Customer Complaint Record</h3>
           {currentComplaint.qms_reference_number && (
             <span className="qms-ref-pill">{currentComplaint.qms_reference_number}</span>
           )}

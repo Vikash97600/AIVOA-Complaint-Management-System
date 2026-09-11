@@ -35,10 +35,14 @@ async def get_complaint_endpoint(
 async def list_complaints_endpoint(
     page: int = Query(default=1, ge=1, description="Page number"),
     page_size: int = Query(default=20, ge=1, le=100, description="Items per page"),
+    status: Optional[str] = Query(default=None, description="Filter by complaint status (e.g. DRAFT, COMMITTED)"),
+    search: Optional[str] = Query(default=None, description="Search query matching customer, product, batch, or QMS reference"),
     db: AsyncSession = Depends(get_db)
 ):
-    """Lists complaints with pagination ordered by creation date."""
-    items, total = await complaint_service.list_complaints(db, page=page, page_size=page_size)
+    """Lists complaints with pagination, optional status/search filters, ordered by updated_at / created_at descending."""
+    items, total = await complaint_service.list_complaints(
+        db, page=page, page_size=page_size, status=status, search=search
+    )
     return PaginatedResponse[ComplaintResponse](
         items=items,
         total=total,

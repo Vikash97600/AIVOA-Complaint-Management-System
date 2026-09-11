@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Sun, Moon, PlusCircle, Sparkles } from 'lucide-react';
-import { selectCurrentComplaint } from '../../store/selectors';
+import { Sun, Moon, PlusCircle, Sparkles, History } from 'lucide-react';
+import { selectCurrentComplaint, selectComplaintListTotal } from '../../store/selectors';
 import { clearWorkspaceThunk } from '../../store/thunks';
 
-export function AppHeader() {
+export function AppHeader({ onOpenHistory }) {
   const dispatch = useDispatch();
   const currentComplaint = useSelector(selectCurrentComplaint);
+  const totalCount = useSelector(selectComplaintListTotal);
 
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('aivoa_theme') || 'dark';
@@ -23,6 +24,9 @@ export function AppHeader() {
 
   const handleNewComplaint = () => {
     dispatch(clearWorkspaceThunk());
+    const url = new URL(window.location);
+    url.searchParams.delete('complaintId');
+    window.history.replaceState({}, '', url.pathname);
   };
 
   return (
@@ -39,6 +43,17 @@ export function AppHeader() {
         </div>
 
         <div className="header-actions">
+          <button
+            type="button"
+            className="history-nav-btn"
+            onClick={onOpenHistory}
+            title="Open Complaint History"
+          >
+            <History size={16} />
+            <span>Complaint History</span>
+            {totalCount > 0 && <span className="history-count-badge">{totalCount}</span>}
+          </button>
+
           <button
             type="button"
             className="theme-toggle-btn"

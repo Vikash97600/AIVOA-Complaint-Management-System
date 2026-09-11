@@ -218,7 +218,7 @@ async def test_qms_commit_lifecycle_and_snapshot(async_client: AsyncClient):
         f"/api/complaints/{complaint_id}",
         json={"batch_number": "ILLEGAL_MUTATION_123"}
     )
-    assert patch_res.status_code == 400
+    assert patch_res.status_code == 409
     assert "already been committed" in patch_res.json()["detail"].lower()
 
     # Verify database data remained intact
@@ -278,4 +278,119 @@ async def test_commit_complaint_json_body_endpoint(async_client: AsyncClient):
     data = commit_res.json()
     assert data["status"] == "COMMITTED"
     assert data["qms_reference_number"].startswith("QMS-")
+
+
+@pytest.mark.asyncio
+async def test_list_complaints_filtering_and_search(async_client: AsyncClient):
+    """Test 11 (Prompt 17.1): Complaint history filtering by status and search keyword."""
+    # Create DRAFT complaint
+    res1 = await async_client.post(
+        "/api/complaints",
+        json={
+            "customer_name": "Apollo Pharmacy",
+            "product_name": "Amoxicillin Capsules 500 mg",
+            "batch_number": "AMX240602",
+        }
+    )
+    assert res1.status_code == 201
+
+    # Create second DRAFT complaint
+    res2 = await async_client.post(
+        "/api/complaints",
+        json={
+            "customer_name": "Fortis Healthcare",
+            "product_name": "Ciprofloxacin IV 200mg",
+            "batch_number": "CIP990101",
+        }
+    )
+    assert res2.status_code == 201
+    cid2 = res2.json()["id"]
+
+    # Attach risk and commit the second complaint
+    from app.services.risk_assessment_service import save_or_update_risk_assessment
+    from app.schemas.risk import RiskAssessmentCreate
+    from app.dependencies import get_db
+
+    async for db in app.dependency_overrides[get_db]():
+        await save_or_update_risk_assessment(
+            db,
+            cid2,
+            RiskAssessmentCreate(
+                severity_suggested="MEDIUM",
+                complaint_category="Packaging Defect",
+                suggested_next_action="Review batch record",
+                risk_details="Minor defect",
+                requires_quarantine=False
+            )
+        )
+        break
+
+    await async_client.post(f"/api/complaints/{cid2}/commit")
+
+    # Filter status=DRAFT
+    draft_res = await async_client.get("/api/complaints?status=DRAFT")
+    assert draft_res.status_code == 200
+    draft_items = draft_res.json()["items"]
+    assert all(item["status"] == "DRAFT" for item in draft_items)
+    assert any(item["customer_name"] == "Apollo Pharmacy" for item in draft_items)
+
+    # Filter status=COMMITTED
+    committed_res = await async_client.get("/api/complaints?status=COMMITTED")
+    assert committed_res.status_code == 200
+    committed_items = committed_res.json()["items"]
+    assert all(item["status"] == "COMMITTED" for item in committed_items)
+    assert any(item["customer_name"] == "Fortis Healthcare" for item in committed_items)
+
+    # Search keyword
+    search_res = await async_client.get("/api/complaints?search=Apollo")
+    assert search_res.status_code == 200
+    search_items = search_res.json()["items"]
+    assert len(search_items) == 1
+    assert search_items[0]["customer_name"] == "Apollo Pharmacy"
+
+
+@pytest.mark.asyncio
+async def test_get_complaint_full_detail_payload(async_client: AsyncClient):
+    """Test 12 (Prompt 17.1): GET /api/complaints/{id} returns complete detail with risk assessment."""
+    create_res = await async_client.post(
+        "/api/complaints",
+        json={
+            "customer_name": "Apollo Pharmacy",
+            "product_name": "Amoxicillin Capsules",
+            "strength_grade": "500 mg",
+            "batch_number": "AMX240602",
+            "affected_quantity": "12 capsules"
+        }
+    )
+    complaint_id = create_res.json()["id"]
+
+    # Attach risk
+    from app.services.risk_assessment_service import save_or_update_risk_assessment
+    from app.schemas.risk import RiskAssessmentCreate
+    from app.dependencies import get_db
+
+    async for db in app.dependency_overrides[get_db]():
+        await save_or_update_risk_assessment(
+            db,
+            complaint_id,
+            RiskAssessmentCreate(
+                severity_suggested="HIGH",
+                complaint_category="Product Defect",
+                suggested_next_action="Quarantine batch",
+                risk_details="Discoloration risk",
+                requires_quarantine=True
+            )
+        )
+        break
+
+    detail_res = await async_client.get(f"/api/complaints/{complaint_id}")
+    assert detail_res.status_code == 200
+    detail = detail_res.json()
+    assert detail["id"] == complaint_id
+    assert detail["customer_name"] == "Apollo Pharmacy"
+    assert detail["product_name"] == "Amoxicillin Capsules"
+    assert detail["risk_assessment"] is not None
+    assert detail["risk_assessment"]["severity_suggested"] == "HIGH"
+    assert detail["risk_assessment"]["requires_quarantine"] is True
+
 

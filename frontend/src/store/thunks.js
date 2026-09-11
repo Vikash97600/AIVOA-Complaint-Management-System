@@ -6,11 +6,18 @@ import {
   setDuplicateDetection,
   setSummary,
   setUpdatedFields,
+  setSelectedComplaintId,
+  setComplaintList,
+  setComplaintListLoading,
+  setComplaintListError,
+  setDetailLoading,
+  setDetailError,
   resetComplaint,
 } from './complaintSlice';
 import { addMessage, setProcessing, setError, clearMessages } from './copilotSlice';
 import { setUploadedFile, setExtractionStatus, setDocumentError, resetDocumentState } from './documentSlice';
 import {
+  listComplaints,
   getComplaint,
   sendCopilotMessage,
   uploadCopilotDocument,
@@ -20,26 +27,58 @@ import {
   generateSummary,
 } from '../services/api';
 
+export const fetchComplaintsThunk = createAsyncThunk(
+  'complaint/fetchList',
+  async (params = {}, { dispatch }) => {
+    const { page = 1, pageSize = 20, status = null, search = null } = params;
+    dispatch(setComplaintListLoading(true));
+    dispatch(setComplaintListError(null));
+    try {
+      const data = await listComplaints(page, pageSize, status, search);
+      dispatch(setComplaintList(data));
+      return data;
+    } catch (err) {
+      console.error('Failed in fetchComplaintsThunk:', err);
+      dispatch(setComplaintListError(err.message || 'Failed to load complaint history.'));
+      throw err;
+    } finally {
+      dispatch(setComplaintListLoading(false));
+    }
+  }
+);
+
 export const fetchComplaintThunk = createAsyncThunk(
   'complaint/fetchById',
   async (complaintId, { dispatch }) => {
-    dispatch(setProcessing(true));
+    dispatch(setDetailLoading(true));
+    dispatch(setDetailError(null));
+    dispatch(setSelectedComplaintId(complaintId));
     try {
       const complaintData = await getComplaint(complaintId);
       dispatch(setComplaint(complaintData));
       if (complaintData.risk_assessment) {
         dispatch(setRiskAssessment(complaintData.risk_assessment));
+      } else {
+        dispatch(setRiskAssessment(null));
+      }
+      if (complaintData.documents && complaintData.documents.length > 0) {
+        dispatch(setUploadedFile(complaintData.documents[0]));
+        dispatch(setExtractionStatus('extracted'));
+      } else {
+        dispatch(resetDocumentState());
       }
       return complaintData;
     } catch (err) {
       console.error('Failed in fetchComplaintThunk:', err);
-      dispatch(setError(err.message));
+      dispatch(setDetailError(err.message || 'Unable to load complaint details.'));
       throw err;
     } finally {
-      dispatch(setProcessing(false));
+      dispatch(setDetailLoading(false));
     }
   }
 );
+
+export const selectComplaintThunk = fetchComplaintThunk;
 
 export const checkCompletenessThunk = createAsyncThunk(
   'complaint/checkCompleteness',
@@ -112,6 +151,7 @@ export const sendCopilotMessageThunk = createAsyncThunk(
 
       if (response.complaint) {
         dispatch(setComplaint(response.complaint));
+        dispatch(fetchComplaintsThunk());
       }
       if (response.risk_assessment !== undefined) {
         dispatch(setRiskAssessment(response.risk_assessment));
@@ -182,6 +222,7 @@ export const uploadCopilotDocumentThunk = createAsyncThunk(
 
       if (response.complaint) {
         dispatch(setComplaint(response.complaint));
+        dispatch(fetchComplaintsThunk());
       }
       if (response.risk_assessment !== undefined) {
         dispatch(setRiskAssessment(response.risk_assessment));
@@ -229,6 +270,7 @@ export const commitComplaintThunk = createAsyncThunk(
     try {
       const updatedComplaint = await commitComplaint(complaintId);
       dispatch(setComplaint(updatedComplaint));
+      dispatch(fetchComplaintsThunk());
 
       dispatch(
         addMessage({
