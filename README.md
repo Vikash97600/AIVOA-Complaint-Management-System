@@ -1,253 +1,243 @@
 # AIVOA – AI-Powered Customer Complaint Management System
-**Industry:** Pharmaceutical Manufacturing  
-**Architecture:** React + Redux Toolkit | Python 3.11+ FastAPI | LangGraph | Groq LLM | MySQL  
+
+> **Enterprise Quality Management System (QMS) for Pharmaceutical Manufacturing**  
+> *Driven by React 18, Redux Toolkit, FastAPI, LangGraph State Machines, Groq LLM (`gemma2-9b-it`), and MySQL Persistence.*
 
 ---
 
-## Overview
+## 📋 Executive Overview
 
-AIVOA is an enterprise-grade AI-powered Quality Management System (QMS) prototype designed specifically for pharmaceutical manufacturing environments. It streamlines customer complaint intake, edit management, document extraction, and risk triaging through a conversational AI Copilot.
+**AIVOA** is an enterprise-grade AI-powered Customer Complaint Management System designed specifically for regulated pharmaceutical manufacturing environments. It streamlines customer complaint intake, conversational edits, document extraction (PDF, EML, TXT), quality risk triaging, and formal QMS ledger commitment.
 
-### Core Workflow Principle
-- **Left Column:** Read-only structured pharmaceutical complaint form and AI risk triage card.
-- **Right Column:** Conversational AI Copilot interface and PDF document upload tool.
-- **Strict Control Flow:** All form entries and updates are driven by interaction with the AI Copilot (`USER -> AI COPILOT -> STRUCTURED FORM`).
-- **QMS Commitment:** Formal transition from `DRAFT` status to `COMMITTED` status in the database ledger with frozen JSON payload snapshots.
-
----
-
-## Groq AI Setup
-
-```env
-GROQ_API_KEY=your_groq_api_key_here
-GROQ_MODEL=gemma2-9b-it
-GROQ_TEMPERATURE=0
-GROQ_MAX_TOKENS=2048
-GROQ_TIMEOUT=30
-```
-
-AIVOA uses **Groq** as the primary LLM provider and `gemma2-9b-it` as the default configured model.
-
-The Groq API key is stored strictly on the backend via environment variables and is never exposed to the React frontend.
-
-### AI Architecture Flow
-
-```text
-FastAPI
-   ↓
-Copilot Service
-   ↓
-LangGraph
-   ↓
-AI Nodes (Classifier Node)
-   ↓
-Groq Service (`GroqService`)
-   ↓
-Groq API (`gemma2-9b-it`)
-```
+### 🌟 Core Design Principles
+- **Dual-Pane Interface**: Left panel houses the structured read-only pharmaceutical complaint form & AI risk triage card, while the right panel provides the interactive AI Copilot and document dropzone.
+- **AI-Driven Data Pipeline**: Strict control flow where all complaint form entries and delta updates are executed via natural-language conversation with the AI Copilot (`User Input → AI Agent → Validated Form`).
+- **Immutable QMS Commitment**: Formal transition from `DRAFT` status to `COMMITTED` status in the database ledger with server-side generated QMS reference numbers and frozen JSON payload snapshots.
+- **Database Source of Truth**: All complaint history, active records, and document metadata are stored persistently in MySQL.
 
 ---
 
-## AI Architecture (LangGraph Orchestration)
+## 🤖 AI Architecture (LangGraph & Groq LLM)
 
-AIVOA uses **LangGraph** (`StateGraph`) to manage stateful AI agent workflows.
+AIVOA utilizes **LangGraph** (`StateGraph`) to orchestrate multi-node stateful AI workflows, leveraging **Groq** (`gemma2-9b-it`) for low-latency structured extraction, classification, and risk evaluation.
+
+### High-Level Agent Workflow
 
 ```text
-                         React Frontend
-                               |
-                               | HTTP POST /api/copilot/message
-                               ↓
-                         FastAPI API
-                               |
-                               ↓
-                        Copilot Service
-                               |
-                               ↓
-                       ┌─────────────────┐
-                       │   LangGraph     │
-                       │                 │
-                       │ classifier      │───► Groq Service (gemma2-9b-it)
-                       │      ↓          │
-                       │  conditional    │
-                       │    routing      │
-                       │      ↓          │
-                       │ ┌────┼─────┐    │
-                       │ ↓    ↓     ↓    │
-                       │Log  Edit Document
-                       │ │    │      │   │
-                       │ └────┼──────┘   │
-                       │      ↓          │
-                       │ Risk Assessment │
-                       │      ↓          │
-                       │ Response        │
-                       │ Synthesis       │
-                       └─────────────────┘
-                               |
-                               ↓
-                       Structured Response
-                               |
-                               ↓
-                          React UI
+                                  React UI & Redux
+                                         │
+                                         │ HTTP POST /api/copilot/message
+                                         ▼
+                                    FastAPI Router
+                                         │
+                                         ▼
+                                  Copilot Service
+                                         │
+                                         ▼
+                        ┌─────────────────────────────────┐
+                        │      LangGraph Agent Graph      │
+                        │                                 │
+                        │        Intent Classifier        │───► Groq LLM (`gemma2-9b-it`)
+                        │                │                │
+                        │      Conditional Routing        │
+                        │                │                │
+                        │   ┌────────────┼────────────┐   │
+                        │   ▼            ▼            ▼   │
+                        │  Log          Edit       Document│
+                        │Complaint   Complaint   Extraction│
+                        │   │            │            │   │
+                        │   └────────────┼────────────┘   │
+                        │                ▼                │
+                        │      AI Risk Assessment         │
+                        │                │                │
+                        │       Response Synthesis        │
+                        └─────────────────────────────────┘
+                                         │
+                                         ▼
+                              Structured JSON Response
+                                         │
+                                         ▼
+                             React UI & State Update
 ```
 
-### Log Complaint AI Tool (Prompt 7)
+---
 
-The **Log Complaint AI Tool** parses natural-language user messages via Groq (`gemma2-9b-it`) and extracts structured pharmaceutical complaint attributes into validated Pydantic schemas (`ExtractedComplaintData`).
+### 1. Automated Complaint Logging
+Parses natural-language user reports via Groq (`gemma2-9b-it`) and extracts structured pharmaceutical attributes into validated Pydantic schemas (`ExtractedComplaintData`).
 
 ```text
-User Natural Language Message
-          ↓
-React Copilot UI & Redux
-          ↓
-FastAPI (`POST /api/copilot/message`)
-          ↓
-LangGraph (`compiled_graph`)
-          ↓
-Intent Classifier (`LOG_COMPLAINT`)
-          ↓
-Log Complaint Node (`log_complaint_node`)
-          ↓
-Groq LLM Service (`GroqService` / `gemma2-9b-it`)
-          ↓
-Pydantic Validation (`ExtractedComplaintData`)
-          ↓
-MySQL Persistence (`ComplaintService.create_complaint`)
-          ↓
-Redux (`complaintSlice`)
-          ↓
-Left Panel Complaint Form Auto-Population
+User Natural Language Message (e.g., "Apollo Pharmacy reported 12 discolored capsules...")
+          │
+          ▼
+FastAPI (`POST /api/copilot/message`) ──► LangGraph (`LOG_COMPLAINT` Intent)
+          │
+          ▼
+Groq LLM Service (`gemma2-9b-it`) ──► Pydantic Entity Extraction
+          │
+          ▼
+MySQL Persistence (`ComplaintService.create_complaint` -> DRAFT)
+          │
+          ▼
+Redux Hydration & Form Auto-Population
 ```
 
-### AI Risk Assessment Tool (Prompt 8)
+---
 
-The **AI Risk Assessment Tool** performs preliminary quality risk triage on extracted complaint data using Groq (`gemma2-9b-it`) and output validation via Pydantic (`RiskAssessmentOutput`).
+### 2. AI Risk Assessment & Triage
+Performs preliminary quality risk evaluation on complaint data, determining suggested severity (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`), next actions, risk rationales, and quarantine recommendations.
 
 ```text
-Validated ComplaintData
-          ↓
-LangGraph Risk Assessment Node (`risk_assessment_node`)
-          ↓
-Groq LLM Service (`GroqService` / `gemma2-9b-it`)
-          ↓
+Validated Complaint Data
+          │
+          ▼
+LangGraph Risk Node (`risk_assessment_node`) ──► Groq LLM Evaluation
+          │
+          ▼
 Pydantic Validation (`RiskAssessmentOutput`)
-          ↓
-MySQL Persistence (`save_or_update_risk_assessment`)
-          ↓
-Redux Store (`complaintSlice`)
-          ↓
-React UI (`RiskAssessmentCard.jsx`)
+          │
+          ▼
+MySQL Persistence (`save_or_update_risk_assessment`) ──► UI Triage Card Update
 ```
 
-*Note: All AI risk assessments represent preliminary triage recommendations ("AI-assisted preliminary assessment — QA review required") and do not replace formal human QA investigation or regulatory decisions.*
-
-### Edit Complaint AI Tool (Prompt 9)
-
-The **Edit Complaint AI Tool** allows modifying active customer complaints through natural-language edit requests via Groq (`gemma2-9b-it`) and partial delta merging (`ComplaintEditOutput`).
-
-```text
-User Natural Language Edit Request (e.g. "Batch is BMX240602, quantity is 48 capsules")
-          ↓
-React Copilot UI & Redux
-          ↓
-FastAPI (`POST /api/copilot/message` with active `complaint_id`)
-          ↓
-LangGraph (`compiled_graph`)
-          ↓
-Intent Classifier (`EDIT_COMPLAINT`)
-          ↓
-Edit Complaint Node (`edit_complaint_node`)
-          ↓
-Groq LLM Service (`GroqService` / `gemma2-9b-it`)
-          ↓
-Pydantic Validation (`ComplaintEditOutput` -> `updated_fields`, `changes`)
-          ↓
-Python Deterministic Merge (Updates ONLY requested fields; preserves all unmentioned data)
-          ↓
-MySQL Partial Delta Update (`ComplaintService.update_complaint`)
-          ↓
-AI Risk Re-Assessment Node (`risk_assessment_node` re-evaluates updated complaint)
-          ↓
-Redux (`complaintSlice`)
-          ↓
-Left Panel Complaint Form & Risk Card Real-Time Update
-```
-
-*Key Safety Principle: Only explicitly requested complaint fields are modified; all other complaint attributes and system fields remain completely preserved.*
-
-### Document Extraction Tool (Prompt 10)
-
-The **Document Extraction Tool** enables users to upload customer complaint documents (PDF, EML, TXT) directly through the AIVOA Copilot interface.
-
-```text
-Uploaded Document (PDF / EML / TXT)
-          ↓
-React Copilot UI & Redux (`uploadCopilotDocument`)
-          ↓
-FastAPI (`POST /api/copilot/document`)
-          ↓
-File Validation & Storage (Path Traversal Prevention + UUID Filename)
-          ↓
-Document Extraction Service (`extract_text_from_pdf` via `pypdf` / EML / TXT)
-          ↓
-LangGraph (`compiled_graph` with `DOCUMENT_EXTRACTION` intent)
-          ↓
-Document Extraction Node (`document_extract_node`)
-          ↓
-Groq LLM Service (`GroqService` / `gemma2-9b-it`)
-          ↓
-Pydantic Validation (`ExtractedComplaintData`)
-          ↓
-MySQL Persistence (`Complaint`, `ComplaintDocument`, `RiskAssessment`)
-          ↓
-AI Risk Assessment Node (`risk_assessment_node` generates risk triage)
-          ↓
-Redux & Left Panel Form Auto-Population + Risk Card Update
-```
-
-*Supported Document Types:*
-- **PDF (`.pdf`):** Extracted via `pypdf`.
-- **Email (`.eml`):** Parsed via Python standard library `email` parser (Subject, From, To, Date, Body).
-- **Text (`.txt`):** Decoded via UTF-8 string parser.
-
-*Upload Security & Safety Rules:*
-- Strict file size limit validation (`MAX_UPLOAD_SIZE` 10 MB).
-- Extension & MIME type validation (.pdf, .eml, .txt).
-- Path traversal prevention: UUID generated stored filename (`uploads/<uuid>.<ext>`). Original filename retained only as metadata.
-- Binary document contents are stored strictly on the server filesystem, never inside MySQL.
-- Prompt Injection Resistance: Document text is treated strictly as UNTRUSTED DATA content, preventing prompt injection attacks from overriding AI system instructions.
-- Missing field preservation: Unmentioned or absent fields (e.g. missing batch number or expiry date) remain `null` and are not hallucinated.
-- *Limitation Notice:* Production-grade OCR for scanned/image-only PDFs is outside current prototype scope. Image-only PDFs return controlled messages asking for text-based documents.
-
-### Graph Execution Nodes
-1. **`classifier` (`classifier_node`)**: Evaluates incoming message content via `GroqService` to classify user intent (`LOG_COMPLAINT`, `EDIT_COMPLAINT`, `DOCUMENT_EXTRACTION`, `UNKNOWN`) and route to target workflow branch.
-2. **`log_complaint` (`log_complaint_node`)**: Log Complaint Tool extracting structured pharmaceutical entities from natural text via `GroqService`.
-3. **`edit_complaint` (`edit_complaint_node`)**: Edit Complaint Tool extracting requested partial field deltas via `GroqService` and applying deterministic Python merging.
-4. **`document_extraction` (`document_extract_node`)**: Real Document Extraction Tool parsing text from uploaded PDF/EML/TXT documents via `pypdf` and `GroqService`.
-5. **`risk_assessment` (`risk_assessment_node`)**: AI Risk Assessment Tool performing quality risk triage scoring (`severity_suggested`, `suggested_next_action`, `risk_details`, `requires_quarantine`).
-6. **`response_synthesis` (`response_synthesis_node`)**: Formulates the final natural-language update for the Copilot chat.
-
+*Note: All AI risk evaluations represent preliminary quality triage recommendations ("AI-assisted preliminary assessment — QA review required") and do not replace formal human QA investigation or regulatory decisions.*
 
 ---
 
-## Backend & Database Architecture
+### 3. Conversational Complaint Editing
+Supports partial delta updates to existing draft complaints. Only explicitly requested fields (e.g. batch number or affected quantity) are modified while all unmentioned fields remain preserved.
 
-The AIVOA backend is powered by **Python 3.11+**, **FastAPI**, **SQLAlchemy 2.0 (Async ORM)**, and **MySQL**.
+```text
+Natural-Language Edit Prompt (e.g., "Change batch number to BMX240602 and quantity to 48 capsules")
+          │
+          ▼
+FastAPI (`POST /api/copilot/message` + active `complaint_id`)
+          │
+          ▼
+LangGraph Agent (`EDIT_COMPLAINT` Intent) ──► Groq Structured Output
+          │
+          ▼
+Deterministic Merging (Updates requested fields only) ──► MySQL Delta Update
+          │
+          ▼
+AI Risk Re-Assessment (Automatically re-evaluates risk on updated complaint data)
+```
 
-### Key Technologies
-- **API Framework:** FastAPI 0.110+ with OpenAPI Swagger (`/docs`) and ReDoc (`/redoc`).
-- **Async Database Driver:** `aiomysql` (`mysql+aiomysql://`) for non-blocking FastAPI async I/O.
+---
+
+### 4. Intelligent Document Extraction
+Parses customer complaint documents (PDF, EML, TXT) uploaded directly through the Copilot interface.
+
+```text
+Uploaded File (.pdf / .eml / .txt) ──► File Validation & Storage (UUID Filename)
+          │
+          ▼
+Document Extraction Service (`pypdf` / Email Parser / UTF-8 Reader)
+          │
+          ▼
+LangGraph Agent (`DOCUMENT_EXTRACTION` Intent) ──► Groq Entity Extraction
+          │
+          ▼
+MySQL Storage (`Complaint`, `ComplaintDocument`, `RiskAssessment`)
+          │
+          ▼
+Form Auto-Population & Risk Triage Display
+```
+
+**Security & Safety Controls:**
+- **File Restrictions**: Allowed formats `.pdf`, `.eml`, `.txt`; max file size `10 MB`.
+- **Path Traversal Protection**: Stored with randomized server UUID filenames (`uploads/<uuid>.<ext>`).
+- **Prompt Injection Defense**: Extracted file text is isolated as untrusted data input, preventing instruction overrides.
+- **Hallucination Prevention**: Absent fields remain `null` and are not hallucinated.
+
+---
+
+### 5. Bonus AI Assistance Tools
+
+1. **Complaint Completeness Checker**: Evaluates complaint data against required QMS fields, producing a **0–100% Completeness Score** with missing field alerts.
+2. **Duplicate Complaint Detection**: Scans MySQL records for matching products, batches, customers, or defect descriptions to surface candidate duplicates.
+3. **Executive Complaint Summary**: Generates concise summaries using `gemma2-9b-it` for QA review and executive handoffs.
+4. **Quality Risk Classification**: Visual risk triage badges (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`), quarantine recommendations, and rationales.
+
+---
+
+## 🔒 QMS Ledger Commit & Immutability
+
+AIVOA enforces strict lifecycle management for pharmaceutical complaints:
+
+```text
+                    ┌─────────────────────────┐
+                    │      DRAFT Status       │
+                    │                         │
+                    │ - Editable via Copilot  │
+                    │ - Deletable by User     │
+                    └────────────┬────────────┘
+                                 │
+                                 │ Confirm & Commit
+                                 ▼
+                    ┌─────────────────────────┐
+                    │    COMMITTED Status     │
+                    │                         │
+                    │ - Assigned QMS-YYYY-XXX │
+                    │ - Frozen Ledger JSON    │
+                    │ - View-Only / Immutable │
+                    └─────────────────────────┘
+```
+
+1. **DRAFT Status**: Newly logged complaints remain editable and can be updated conversationally.
+2. **Commit to QMS Ledger**:
+   - Generates a unique server-side QMS Reference Number (`QMS-2026-XXXXXX`).
+   - Freezes a full JSON snapshot (`frozen_payload_json`) of complaint data, risk assessment, and document metadata into the `qms_ledger` table.
+   - Transitions complaint status to `COMMITTED`.
+3. **Immutability Protection**: `PATCH` updates, `DELETE` calls, or Copilot edit attempts targeting committed records are rejected with `HTTP 409 Conflict`.
+
+---
+
+## 📂 Complaint History, Persistence & Lifecycle Management
+
+All complaints are persisted in MySQL (`complaints`, `risk_assessments`, `complaint_documents`, `qms_ledger`).
+
+```text
+                 ┌─────────────┐
+                 │    DRAFT    │
+                 └──────┬──────┘
+                        │
+             ┌──────────┼──────────┐
+             │          │          │
+             ▼          ▼          ▼
+           Edit       Delete     Commit
+             │          │          │
+             │          ▼          ▼
+             │       Removed   COMMITTED
+             │                     │
+             ▼                     ▼
+           DRAFT                 View Only
+```
+
+### Key Capabilities:
+- **Complaint History Drawer**: Slide-over panel for browsing, searching, and filtering complaints by status (`ALL`, `DRAFT`, `COMMITTED`).
+- **URL & Refresh State Hydration**: Selected complaints sync with URL query parameter (`?complaintId=<uuid>`). Browser refresh automatically re-hydrates Redux and UI state directly from MySQL.
+- **Draft Deletion**: Users can delete accidental draft complaints via the UI (with a confirmation modal dialog). Deletion is transactional and cleans up dependent draft records in MySQL.
+- **Committed Record Safety**: Committed complaints display an enterprise locked view-only banner; deletion buttons are hidden and backend-blocked.
+
+---
+
+## 🏛️ Database & Backend Architecture
+
+Powered by **Python 3.11+**, **FastAPI**, **SQLAlchemy 2.0 (Async ORM)**, and **MySQL**.
+
+### Key Tech Stack
+- **API Framework:** FastAPI 0.110+ with OpenAPI Swagger (`/docs`) & ReDoc (`/redoc`).
+- **Async Database Driver:** `aiomysql` (`mysql+aiomysql://`) for FastAPI async handlers.
 - **Sync Migration Driver:** `pymysql` (`mysql+pymysql://`) for Alembic database migrations.
-- **Data Validation:** Pydantic v2 schemas (`ComplaintCreate`, `ComplaintUpdate`, `ComplaintResponse`, `CopilotMessageRequest`, `CopilotResponse`).
-- **Error Handling:** Custom exception handlers (`AIVOAException`, `ComplaintNotFoundError`) that log server errors without leaking database credentials or stack traces to clients.
-- **Correlation Tracking:** Middleware injecting unique `X-Request-ID` headers.
+- **Validation:** Pydantic v2 schemas.
 
-### Database Schema (MySQL)
+### Database ER Diagram
 
 ```text
 ┌────────────────────────────────────────────────────────┐
 │                      complaints                        │
 ├────────────────────────────────────────────────────────┤
-│ id: VARCHAR(36) (PK)                                   │
+│ id: UUID (PK)                                          │
 │ status: ComplaintStatus (DRAFT / COMMITTED) [Index]    │
 │ qms_reference_number: VARCHAR(50) (Unique)             │
 │ customer_name: VARCHAR(255) [Index]                    │
@@ -268,48 +258,45 @@ The AIVOA backend is powered by **Python 3.11+**, **FastAPI**, **SQLAlchemy 2.0 
 ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
 │ risk_assessments │  │complaint_docum...│  │    qms_ledger    │
 ├──────────────────┤  ├──────────────────┤  ├──────────────────┤
-│id: VARCHAR(36) PK│  │id: VARCHAR(36) PK│  │id: VARCHAR(36) PK│
-│complaint_id (FK) │  │complaint_id (FK) │  │complaint_id (FK) │
-│severity: Enum    │  │file_name: VARCHAR│  │qms_ref_num (UQ)  │
-│category: VARCHAR │  │file_path: VARCHAR│  │committed_at(tz)  │
-│next_action: TEXT │  │file_type: VARCHAR│  │frozen_payload    │
-│risk_details: TEXT│  │file_size: INT    │  │  (JSON)          │
-│quarantine: BOOL  │  │extracted_text    │  └──────────────────┘
+│id: UUID (PK)     │  │complaint_id (FK) │  │id: UUID (PK)     │
+│complaint_id (FK) │  │file_name: VARCHAR│  │complaint_id (FK) │
+│severity: Enum    │  │file_path: VARCHAR│  │qms_ref_num (UQ)  │
+│category: VARCHAR │  │file_type: VARCHAR│  │committed_at(tz)  │
+│next_action: TEXT │  │file_size: INT    │  │frozen_payload    │
+│risk_details: TEXT│  │extracted_text    │  └──────────────────┘
+│quarantine: BOOL  │  │uploaded_at (tz)  │
 │created_at (tz)   │  │uploaded_at (tz)  │
 └──────────────────┘  └──────────────────┘
 ```
 
 ---
 
-## Project Structure
+## 🛠️ Repository Structure
 
-```
+```text
 AIVOA/
-├── frontend/             # React + Redux Toolkit + Vite (Port 5173)
+├── frontend/             # React 18 + Redux Toolkit + Vite (Port 5173)
 │   ├── src/
-│   │   ├── components/   # Split-view components (Form & Copilot)
-│   │   ├── store/        # Redux Toolkit slices
-│   │   ├── services/     # API integration service
+│   │   ├── components/   # Form, Copilot, History Drawer & Risk components
+│   │   ├── store/        # Redux Toolkit slices, thunks, selectors
+│   │   ├── services/     # API integration client
 │   │   └── App.jsx
 │   └── package.json
 │
 ├── backend/              # Python 3.11+ FastAPI + MySQL (Port 8000)
 │   ├── app/
-│   │   ├── ai/           # LangGraph state graph, nodes & state definitions
+│   │   ├── ai/           # LangGraph graph, nodes & prompt definitions
 │   │   │   ├── nodes/    # classifier, log_complaint, edit_complaint, etc.
 │   │   │   ├── state.py  # AgentState TypedDict & Intent enum
-│   │   │   └── graph.py  # build_aivoa_graph() & compiled_graph
-│   │   ├── api/          # Central API Router (/api)
-│   │   │   ├── routes/   # health.py, complaints.py, copilot.py
-│   │   │   └── router.py
-│   │   ├── core/         # config.py, exceptions.py, logging_config.py
-│   │   ├── database/     # models.py, session.py
-│   │   ├── schemas/      # common.py, complaint.py, copilot.py, etc.
-│   │   ├── services/     # complaint_service.py, copilot_service.py
-│   │   ├── dependencies.py # get_db session generator & request_id
+│   │   │   └── graph.py  # AIVOA compiled state graph
+│   │   ├── api/          # REST API Routes (/api)
+│   │   ├── core/         # Config, custom exceptions, logging
+│   │   ├── database/     # SQLAlchemy models & database session
+│   │   ├── schemas/      # Pydantic schemas
+│   │   ├── services/     # Business logic services
 │   │   └── main.py       # FastAPI application entry point
-│   ├── alembic/          # Alembic migrations (001_initial_schema)
-│   ├── tests/            # Pytest test suite (23 passing tests)
+│   ├── alembic/          # Database migrations
+│   ├── tests/            # Pytest suite (74 passing tests)
 │   ├── requirements.txt
 │   └── .env.example
 │
@@ -318,98 +305,42 @@ AIVOA/
 
 ---
 
-### Bonus AI Complaint Assistance Tools (Prompt 15)
-
-1. **Complaint Completeness Checker**: Evaluates complaint data against required and optional QMS fields, producing a **0–100% Completeness Score** (e.g. *85% - Mostly Complete*) along with missing field warnings and QA recommendations.
-2. **Duplicate Complaint Detection**: Searches existing records in MySQL based on product, batch, customer, and defect similarity without external vector DB dependencies, generating advisory similarity alerts (e.g. *Matches QMS-2026-000001*).
-3. **Executive Complaint Summary**: Generates concise, professional summaries using `gemma2-9b-it` / `llama-3.3-70b-versatile` for QA review and executive handoff.
-4. **AI Quality Risk Classification**: Visual preliminary quality triage badges (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`), quarantine recommendations, and risk rationales.
-
----
-
-## QMS Ledger Commit Workflow (Prompt 14)
-
-AIVOA enforces strict lifecycle management for customer complaints:
-1. **DRAFT Status**: Newly logged complaints remain in `DRAFT` status and can be conversationally edited via the Copilot.
-2. **Commit Action**: When the reviewer confirms complaint accuracy and clicks **🔒 Commit to QMS Ledger**:
-   - Generates a server-side unique QMS Reference Number (`QMS-YYYY-XXXXXX`).
-   - Freezes a full JSON snapshot (`frozen_payload_json`) of complaint details, risk assessment, and document metadata into the `qms_ledger` table.
-   - Transitions status to `COMMITTED`.
-3. **Immutability Enforcement**: Once committed, subsequent REST edits (`PATCH /api/complaints/{id}`) or Copilot update requests are strictly rejected on both backend and frontend.
-
----
-
-## API Endpoints Reference
+## 🌐 REST API Specification
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/health` | Service health status check |
-| `POST` | `/api/copilot/message` | Process natural language prompts through LangGraph AI Agent |
-| `POST` | `/api/copilot/document` | Extract complaint details from uploaded PDF, TXT, or EML document |
-| `POST` | `/api/complaints` | Create a new DRAFT complaint directly |
+| `GET` | `/api/health` | Service health check |
+| `POST` | `/api/copilot/message` | Process natural language message via LangGraph AI Agent |
+| `POST` | `/api/copilot/document` | Extract complaint details from uploaded PDF, TXT, or EML |
+| `POST` | `/api/complaints` | Create a new DRAFT complaint record |
 | `GET` | `/api/complaints` | List complaints with pagination, status filter (`?status=DRAFT|COMMITTED`), and search (`?search=query`) |
-| `GET` | `/api/complaints/{id}` | Retrieve single complaint by UUID with complete risk and ledger snapshot |
-| `PATCH` | `/api/complaints/{id}` | Update partial complaint delta fields (blocked with HTTP 409 if COMMITTED) |
-| `DELETE` | `/api/complaints/{id}` | Permanently delete a complaint (permitted ONLY for DRAFT status; blocked with HTTP 409 if COMMITTED) |
+| `GET` | `/api/complaints/{id}` | Retrieve complete complaint detail, risk assessment, and documents |
+| `PATCH` | `/api/complaints/{id}` | Update partial complaint delta fields (blocked with `409` if COMMITTED) |
+| `DELETE` | `/api/complaints/{id}` | Permanently delete DRAFT complaint (blocked with `409` if COMMITTED) |
 | `POST` | `/api/complaints/{id}/commit` | Formally commit DRAFT complaint to QMS Ledger |
 | `GET` | `/api/complaints/{id}/qms` | Retrieve frozen QMS Ledger snapshot |
-| `POST` | `/api/complaints/{id}/completeness` | Run AI Complaint Completeness assessment |
+| `POST` | `/api/complaints/{id}/completeness` | Evaluate AI Complaint Completeness score |
 | `POST` | `/api/complaints/{id}/duplicates` | Search candidate duplicate complaints in MySQL |
 | `POST` | `/api/complaints/{id}/summary` | Generate executive complaint summary |
 
 ---
 
-## Complaint History, Persistence & Deletion
+## 🎬 Demo Script Walkthrough
 
-Complaints are persisted in MySQL (`Complaint`, `RiskAssessment`, `ComplaintDocument`, and `QMSLedger` models).
-
-After a browser refresh, users can:
-1. Open the **Complaint History** drawer from the top header or empty state.
-2. Search and filter by status (`DRAFT` or `COMMITTED`).
-3. Select any existing complaint to re-hydrate the left complaint form, risk triage card, and copilot state directly from MySQL.
-4. Continue editing `DRAFT` complaints using the AI Copilot.
-5. Delete `DRAFT` complaints using the `[Delete]` button (with confirmation modal) if created accidentally.
-6. View `COMMITTED` complaints in strict view-only mode (immutable, modification or deletion attempts rejected by backend with `HTTP 409 Conflict`).
-7. Deep link or refresh with `?complaintId=<uuid>` to automatically restore the active complaint workspace on reload.
-
-### Draft Complaint Deletion Lifecycle
-```text
-                 ┌─────────────┐
-                 │    DRAFT    │
-                 └──────┬──────┘
-                        │
-             ┌──────────┼──────────┐
-             │          │          │
-             ▼          ▼          ▼
-           Edit       Delete     Commit
-             │          │          │
-             │          ▼          ▼
-             │       Removed   COMMITTED
-             │                     │
-             ▼                     ▼
-           DRAFT                 View Only
-```
-- **DRAFT**: Can be edited or permanently deleted after user confirmation in UI.
-- **COMMITTED**: Cannot be edited or deleted (strictly immutable in QMS Ledger).
-
----
-
-## Demo Script Walkthrough
-
-### Scenario 1: Log Apollo Pharmacy Complaint via Chat
+### Scenario 1: Log Complaint via Chat
 1. Open `http://localhost:5173`.
-2. In the **AIVOA Copilot** chat input, enter:
+2. In the Copilot chat, enter:
    > *"Apollo Pharmacy reported 12 discolored capsules in Amoxicillin Capsules 500 mg, batch AMX240602, manufacturing March 2026, expiry February 2028."*
 3. Observe the left-hand **Complaint Form** auto-populate with extracted fields and the **AI Risk Triage Card** display **HIGH** severity and quarantine recommendation.
 
-### Scenario 2: Edit Complaint Details Conversationally
-1. In the chat input, type:
+### Scenario 2: Edit Complaint Conversationally
+1. In the chat, type:
    > *"Change batch number to BMX240602 and affected quantity to 48 capsules."*
-2. Confirm the form updates only the batch number and quantity while preserving all other customer/product fields.
+2. Confirm the form updates only the batch number and quantity while preserving all customer/product fields.
 
 ### Scenario 3: Upload Complaint Document
 1. Drag & drop a `.pdf`, `.eml`, or `.txt` complaint document into the Copilot Document Upload area.
-2. Verify extracted metadata, text, and preliminary quality risk triage.
+2. Observe auto-extracted metadata, text, and preliminary risk triage.
 
 ### Scenario 4: Commit to QMS Ledger
 1. Click **🔒 Commit to QMS Ledger** in the left panel.
@@ -417,10 +348,10 @@ After a browser refresh, users can:
 
 ---
 
-## Getting Started
+## 🚀 Quick Start & Installation
 
 ### 1. Database Setup (MySQL)
-Ensure local MySQL server is running and create the target database:
+Ensure local MySQL server is running and create the database:
 ```sql
 CREATE DATABASE IF NOT EXISTS aivoa;
 ```
@@ -436,13 +367,14 @@ venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Configure .env file
-cp .env.example .env
+# Configure environment variables (.env)
+# GROQ_API_KEY=gsk_your_key_here
+# DATABASE_URL=mysql+pymysql://root:password@localhost:3306/aivoa
 
 # Run database migrations
 alembic upgrade head
 
-# Start FastAPI development server
+# Start FastAPI server
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -453,15 +385,14 @@ npm install
 npm run dev
 ```
 
-### 4. Verification & Testing Commands
+### 4. Automated Testing & Verification
 ```bash
-# Run backend pytest test suite with coverage
+# Run backend pytest suite (74 tests)
 cd backend
-pytest --cov=app
+pytest -v
 
-# Run frontend linting & production build
+# Run frontend linter & production build
 cd frontend
 npm run lint
 npm run build
 ```
-
