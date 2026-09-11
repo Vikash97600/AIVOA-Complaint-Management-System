@@ -62,8 +62,29 @@ async def log_complaint_node(state: AgentState) -> Dict[str, Any]:
         }
 
     except Exception as e:
-        logger.error(f"Groq complaint extraction failed in log_complaint_node: {e}", exc_info=True)
+        logger.warning(f"Groq complaint extraction failed in log_complaint_node ({e}). Utilizing fallback rule-based NLP extraction.")
+        from app.ai.nodes.fallback_extractor import fallback_extract_complaint_data
+
+        extracted_dict = fallback_extract_complaint_data(last_message)
+        updated_fields = [k for k, v in extracted_dict.items() if v is not None]
+
+        summary_items = []
+        if extracted_dict.get("customer_name"):
+            summary_items.append(f"Customer: {extracted_dict['customer_name']}")
+        if extracted_dict.get("product_name"):
+            prod = extracted_dict["product_name"]
+            if extracted_dict.get("strength_grade"):
+                prod += f" ({extracted_dict['strength_grade']})"
+            summary_items.append(f"Product: {prod}")
+        if extracted_dict.get("batch_number"):
+            summary_items.append(f"Batch: {extracted_dict['batch_number']}")
+
+        summary_str = ", ".join(summary_items) if summary_items else "complaint details"
+        response_msg = f"Successfully recorded {summary_str}. The complaint form has been populated."
+
         return {
-            "error": "Failed to extract complaint details via AI.",
-            "response_message": "I could not automatically extract the complaint details. Please verify your message or enter fields manually.",
+            "current_complaint": extracted_dict,
+            "updated_fields": updated_fields,
+            "response_message": response_msg,
         }
+

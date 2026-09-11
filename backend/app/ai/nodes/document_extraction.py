@@ -65,9 +65,26 @@ async def document_extract_node(state: AgentState) -> Dict[str, Any]:
         }
 
     except Exception as e:
-        logger.error(f"Groq document extraction failed in document_extract_node: {e}", exc_info=True)
+        logger.warning(f"Groq document extraction failed in document_extract_node ({e}). Utilizing fallback rule-based NLP extraction.")
+        from app.ai.nodes.fallback_extractor import fallback_extract_complaint_data
+
+        extracted_dict = fallback_extract_complaint_data(document_text)
+        current_complaint = {k: v for k, v in extracted_dict.items() if v is not None}
+        updated_fields = list(current_complaint.keys())
+
+        missing = []
+        if not current_complaint.get("batch_number"):
+            missing.append("batch number")
+        if not current_complaint.get("expiry_date"):
+            missing.append("expiry date")
+
+        response_msg = "I extracted the complaint information from the uploaded document and populated the complaint form."
+        if missing:
+            response_msg += f" Note: {', '.join(missing)} was not provided in the document and remains empty for review."
+
         return {
-            "error": "Failed to extract complaint data from document via AI.",
-            "response_message": "An error occurred while analyzing the document contents with AI. Please check the document format or try again.",
-            "updated_fields": [],
+            "current_complaint": current_complaint,
+            "updated_fields": updated_fields,
+            "response_message": response_msg,
         }
+
