@@ -3,6 +3,9 @@ from typing import Any
 from datetime import datetime
 from uuid import UUID
 
+class QMSCommitRequest(BaseModel):
+    complaint_id: UUID
+
 class QMSLedgerResponse(BaseModel):
     id: UUID
     complaint_id: UUID

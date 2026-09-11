@@ -3,7 +3,6 @@ import enum
 from datetime import datetime, timezone
 from typing import Optional, List, Any
 from sqlalchemy import String, Text, Boolean, Integer, DateTime, ForeignKey, Enum as SQLEnum, JSON, UUID
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 class Base(DeclarativeBase):
@@ -163,7 +162,7 @@ class QMSLedger(Base):
         DateTime(timezone=True), default=utc_now, nullable=False
     )
     frozen_payload_json: Mapped[Any] = mapped_column(
-        JSONB().with_variant(JSON(), "sqlite"), nullable=False
+        JSON, nullable=False
     )
 
     # Relationships

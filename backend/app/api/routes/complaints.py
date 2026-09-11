@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
 from app.schemas.complaint import ComplaintCreate, ComplaintUpdate, ComplaintResponse
+from app.schemas.ledger import QMSCommitRequest, QMSLedgerResponse
 from app.schemas.common import PaginatedResponse
 from app.services import complaint_service
 
@@ -55,15 +56,42 @@ async def update_complaint_endpoint(
     complaint = await complaint_service.update_complaint(db, complaint_id, payload)
     return complaint
 
+@router.post("/commit", response_model=ComplaintResponse, status_code=status.HTTP_200_OK)
+async def commit_complaint_body_endpoint(
+    payload: "QMSCommitRequest",
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Formally commits a draft complaint to the QMS Ledger via JSON body payload.
+    """
+    from app.services import qms_service
+    complaint = await qms_service.commit_complaint_to_ledger(db, payload.complaint_id)
+    return complaint
+
 @router.post("/{complaint_id}/commit", response_model=ComplaintResponse, status_code=status.HTTP_200_OK)
 async def commit_complaint_endpoint(
     complaint_id: str,
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Formally commits a draft complaint to the QMS Ledger, generates a unique QMS reference number,
-    and freezes payload snapshot.
+    Formally commits a draft complaint to the QMS Ledger via path parameter.
     """
-    complaint = await complaint_service.commit_complaint_to_qms(db, complaint_id)
+    from app.services import qms_service
+    complaint = await qms_service.commit_complaint_to_ledger(db, complaint_id)
     return complaint
+
+@router.get("/{complaint_id}/qms", response_model=QMSLedgerResponse, status_code=status.HTTP_200_OK)
+async def get_complaint_qms_ledger_endpoint(
+    complaint_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieves the frozen QMS Ledger entry and snapshot for a committed complaint.
+    """
+    from app.services import qms_service
+    from app.core.exceptions import ComplaintNotFoundError
+    ledger_entry = await qms_service.get_ledger_entry_by_complaint_id(db, complaint_id)
+    if not ledger_entry:
+        raise ComplaintNotFoundError(complaint_id)
+    return ledger_entry
 

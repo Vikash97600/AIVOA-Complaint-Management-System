@@ -82,8 +82,13 @@ async def update_complaint(
     """
     Updates ONLY the supplied non-None fields of an existing complaint.
     Preserves all other existing field values (Safe Delta Merge).
+    Rejects modification if the complaint is already COMMITTED to the QMS Ledger.
     """
     complaint = await get_complaint_by_id(db, complaint_id)
+
+    if complaint.status == ComplaintStatus.COMMITTED:
+        from app.core.exceptions import ComplaintAlreadyCommittedError
+        raise ComplaintAlreadyCommittedError(str(complaint_id))
 
     update_data = obj_in.model_dump(exclude_unset=True)
     if not update_data:
@@ -134,44 +139,9 @@ async def commit_complaint_to_qms(
 ) -> Complaint:
     """
     Formally commits a DRAFT complaint to the QMS Ledger.
-    Generates a unique QMS reference number (QMS-2026-XXXXXX), freezes current payload in QMSLedger,
-    and updates complaint status to COMMITTED.
+    Delegates to qms_service.commit_complaint_to_ledger.
     """
-    from app.database.models import QMSLedger, ComplaintStatus
-    from app.schemas.complaint import ComplaintResponse
-
-    complaint = await get_complaint_by_id(db, complaint_id)
-    if complaint.status == ComplaintStatus.COMMITTED:
-        return complaint
-
-    if isinstance(complaint_id, str):
-        complaint_id = uuid.UUID(complaint_id)
-
-    try:
-        current_year = datetime.now(timezone.utc).year
-        qms_ref = f"QMS-{current_year}-{str(uuid.uuid4())[:8].upper()}"
-
-        complaint_schema = ComplaintResponse.model_validate(complaint)
-        frozen_payload = complaint_schema.model_dump(mode="json")
-
-        ledger_entry = QMSLedger(
-            complaint_id=complaint_id,
-            qms_reference_number=qms_ref,
-            frozen_payload_json=frozen_payload,
-        )
-        db.add(ledger_entry)
-
-        complaint.status = ComplaintStatus.COMMITTED
-        complaint.qms_reference_number = qms_ref
-        complaint.updated_at = datetime.now(timezone.utc)
-
-        await db.commit()
-        await db.refresh(complaint)
-        logger.info(f"Committed complaint '{complaint_id}' to QMS Ledger with ref '{qms_ref}'.")
-        return complaint
-    except Exception as e:
-        await db.rollback()
-        logger.error(f"Failed to commit complaint '{complaint_id}' to QMS: {e}", exc_info=True)
-        raise DatabaseOperationError(f"Failed to commit complaint '{complaint_id}' to QMS Ledger.")
+    from app.services import qms_service
+    return await qms_service.commit_complaint_to_ledger(db, complaint_id)
 
 

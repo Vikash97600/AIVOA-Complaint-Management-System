@@ -44,6 +44,35 @@ class DocumentExtractionError(AIVOAException):
             status_code=status.HTTP_400_BAD_REQUEST
         )
 
+class ComplaintAlreadyCommittedError(AIVOAException):
+    def __init__(self, complaint_id: str = ""):
+        msg = f"Complaint '{complaint_id}' has already been committed to the QMS Ledger and cannot be edited." if complaint_id else "This complaint has already been committed to the QMS Ledger and cannot be edited."
+        super().__init__(
+            message=msg,
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+class ComplaintNotReadyForCommitError(AIVOAException):
+    def __init__(self, message: str = "Complaint is not in a valid state to be committed."):
+        super().__init__(
+            message=message,
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+class RiskAssessmentMissingError(AIVOAException):
+    def __init__(self, message: str = "Complaint cannot be committed because the risk assessment is unavailable."):
+        super().__init__(
+            message=message,
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+class QMSCommitError(AIVOAException):
+    def __init__(self, message: str = "Failed to commit complaint to QMS Ledger."):
+        super().__init__(
+            message=message,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 
 async def aivoa_exception_handler(request: Request, exc: AIVOAException) -> JSONResponse:
     logger.warning(f"AIVOA Exception [{exc.status_code}] on {request.url.path}: {exc.message}")

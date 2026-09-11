@@ -31,6 +31,18 @@ async def process_copilot_message(
             current_complaint_dict = existing_complaint_obj.model_dump(mode="json")
             if existing_complaint_obj.risk_assessment:
                 risk_assessment_obj = existing_complaint_obj.risk_assessment
+
+            from app.database.models import ComplaintStatus
+            if complaint_entity.status == ComplaintStatus.COMMITTED:
+                return CopilotResponse(
+                    success=False,
+                    message="This complaint has already been committed to the QMS Ledger and cannot be edited.",
+                    intent="COMPLAINT_COMMITTED",
+                    complaint=existing_complaint_obj,
+                    risk_assessment=risk_assessment_obj,
+                    updated_fields=[],
+                    error="Complaint is committed to QMS Ledger and immutable."
+                )
         except Exception as e:
             logger.warning(f"Could not load active complaint '{request.complaint_id}' for Copilot context: {e}")
 
@@ -169,6 +181,19 @@ async def process_copilot_document(
             current_complaint_dict = existing_complaint_obj.model_dump(mode="json")
             if existing_complaint_obj.risk_assessment:
                 risk_assessment_obj = existing_complaint_obj.risk_assessment
+
+            from app.database.models import ComplaintStatus
+            if entity.status == ComplaintStatus.COMMITTED:
+                return CopilotResponse(
+                    success=False,
+                    message="This complaint has already been committed to the QMS Ledger and cannot be edited.",
+                    intent=Intent.DOCUMENT_EXTRACTION.value,
+                    complaint=existing_complaint_obj,
+                    risk_assessment=risk_assessment_obj,
+                    document=None,
+                    updated_fields=[],
+                    error="Complaint is committed to QMS Ledger and immutable."
+                )
         except Exception as e:
             logger.warning(f"Could not load active complaint '{complaint_id}' for document upload: {e}")
 
