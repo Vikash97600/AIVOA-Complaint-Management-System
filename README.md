@@ -350,6 +350,7 @@ AIVOA enforces strict lifecycle management for customer complaints:
 | `GET` | `/api/complaints` | List complaints with pagination, status filter (`?status=DRAFT|COMMITTED`), and search (`?search=query`) |
 | `GET` | `/api/complaints/{id}` | Retrieve single complaint by UUID with complete risk and ledger snapshot |
 | `PATCH` | `/api/complaints/{id}` | Update partial complaint delta fields (blocked with HTTP 409 if COMMITTED) |
+| `DELETE` | `/api/complaints/{id}` | Permanently delete a complaint (permitted ONLY for DRAFT status; blocked with HTTP 409 if COMMITTED) |
 | `POST` | `/api/complaints/{id}/commit` | Formally commit DRAFT complaint to QMS Ledger |
 | `GET` | `/api/complaints/{id}/qms` | Retrieve frozen QMS Ledger snapshot |
 | `POST` | `/api/complaints/{id}/completeness` | Run AI Complaint Completeness assessment |
@@ -358,7 +359,7 @@ AIVOA enforces strict lifecycle management for customer complaints:
 
 ---
 
-## Complaint History & Persistence
+## Complaint History, Persistence & Deletion
 
 Complaints are persisted in MySQL (`Complaint`, `RiskAssessment`, `ComplaintDocument`, and `QMSLedger` models).
 
@@ -367,8 +368,29 @@ After a browser refresh, users can:
 2. Search and filter by status (`DRAFT` or `COMMITTED`).
 3. Select any existing complaint to re-hydrate the left complaint form, risk triage card, and copilot state directly from MySQL.
 4. Continue editing `DRAFT` complaints using the AI Copilot.
-5. View `COMMITTED` complaints in strict view-only mode (immutable, modification attempts rejected by backend with `HTTP 409 Conflict`).
-6. Deep link or refresh with `?complaintId=<uuid>` to automatically restore the active complaint workspace on reload.
+5. Delete `DRAFT` complaints using the `[Delete]` button (with confirmation modal) if created accidentally.
+6. View `COMMITTED` complaints in strict view-only mode (immutable, modification or deletion attempts rejected by backend with `HTTP 409 Conflict`).
+7. Deep link or refresh with `?complaintId=<uuid>` to automatically restore the active complaint workspace on reload.
+
+### Draft Complaint Deletion Lifecycle
+```text
+                 ┌─────────────┐
+                 │    DRAFT    │
+                 └──────┬──────┘
+                        │
+             ┌──────────┼──────────┐
+             │          │          │
+             ▼          ▼          ▼
+           Edit       Delete     Commit
+             │          │          │
+             │          ▼          ▼
+             │       Removed   COMMITTED
+             │                     │
+             ▼                     ▼
+           DRAFT                 View Only
+```
+- **DRAFT**: Can be edited or permanently deleted after user confirmation in UI.
+- **COMMITTED**: Cannot be edited or deleted (strictly immutable in QMS Ledger).
 
 ---
 

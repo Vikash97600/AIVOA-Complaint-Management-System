@@ -12,7 +12,7 @@ const initialState = {
   loading: false,
   error: null,
 
-  // Prompt 17.1: Complaint History & Selection State
+  // Prompt 17.1 & 17.2: Complaint History, Selection & Deletion State
   complaintList: [],
   complaintListLoading: false,
   complaintListError: null,
@@ -20,6 +20,9 @@ const initialState = {
   selectedComplaintId: null,
   detailLoading: false,
   detailError: null,
+  deletingComplaintId: null,
+  deleteLoading: false,
+  deleteError: null,
 };
 
 export const complaintSlice = createSlice({
@@ -86,6 +89,15 @@ export const complaintSlice = createSlice({
     setDetailError: (state, action) => {
       state.detailError = action.payload;
     },
+    setDeletingComplaintId: (state, action) => {
+      state.deletingComplaintId = action.payload;
+    },
+    setDeleteLoading: (state, action) => {
+      state.deleteLoading = action.payload;
+    },
+    setDeleteError: (state, action) => {
+      state.deleteError = action.payload;
+    },
     resetComplaint: (state) => {
       state.currentComplaint = null;
       state.riskAssessment = null;
@@ -100,6 +112,9 @@ export const complaintSlice = createSlice({
       state.selectedComplaintId = null;
       state.detailLoading = false;
       state.detailError = null;
+      state.deletingComplaintId = null;
+      state.deleteLoading = false;
+      state.deleteError = null;
     },
   },
 });
@@ -120,6 +135,9 @@ export const {
   setComplaintListError,
   setDetailLoading,
   setDetailError,
+  setDeletingComplaintId,
+  setDeleteLoading,
+  setDeleteError,
   resetComplaint,
 } = complaintSlice.actions;
 

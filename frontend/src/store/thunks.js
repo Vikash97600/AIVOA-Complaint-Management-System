@@ -12,6 +12,9 @@ import {
   setComplaintListError,
   setDetailLoading,
   setDetailError,
+  setDeletingComplaintId,
+  setDeleteLoading,
+  setDeleteError,
   resetComplaint,
 } from './complaintSlice';
 import { addMessage, setProcessing, setError, clearMessages } from './copilotSlice';
@@ -19,6 +22,7 @@ import { setUploadedFile, setExtractionStatus, setDocumentError, resetDocumentSt
 import {
   listComplaints,
   getComplaint,
+  deleteComplaint,
   sendCopilotMessage,
   uploadCopilotDocument,
   commitComplaint,
@@ -43,6 +47,37 @@ export const fetchComplaintsThunk = createAsyncThunk(
       throw err;
     } finally {
       dispatch(setComplaintListLoading(false));
+    }
+  }
+);
+
+export const deleteComplaintThunk = createAsyncThunk(
+  'complaint/delete',
+  async (complaintId, { dispatch, getState }) => {
+    dispatch(setDeletingComplaintId(complaintId));
+    dispatch(setDeleteLoading(true));
+    dispatch(setDeleteError(null));
+    try {
+      const result = await deleteComplaint(complaintId);
+      const state = getState();
+      const activeId = state.complaint.selectedComplaintId || state.complaint.currentComplaint?.id;
+
+      if (activeId === complaintId) {
+        dispatch(clearWorkspaceThunk());
+        const url = new URL(window.location);
+        url.searchParams.delete('complaintId');
+        window.history.replaceState({}, '', url.pathname);
+      }
+
+      dispatch(fetchComplaintsThunk());
+      return result;
+    } catch (err) {
+      console.error('Failed in deleteComplaintThunk:', err);
+      dispatch(setDeleteError(err.message || 'Failed to delete draft complaint.'));
+      throw err;
+    } finally {
+      dispatch(setDeleteLoading(false));
+      dispatch(setDeletingComplaintId(null));
     }
   }
 );

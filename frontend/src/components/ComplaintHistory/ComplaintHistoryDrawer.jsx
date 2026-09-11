@@ -11,6 +11,8 @@ import {
   ExternalLink,
   Eye,
   ShieldCheck,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   selectComplaintList,
@@ -19,8 +21,16 @@ import {
   selectComplaintListTotal,
   selectSelectedComplaintId,
   selectDetailLoading,
+  selectDeletingComplaintId,
+  selectDeleteLoading,
+  selectDeleteError,
 } from '../../store/selectors';
-import { fetchComplaintsThunk, selectComplaintThunk, clearWorkspaceThunk } from '../../store/thunks';
+import {
+  fetchComplaintsThunk,
+  selectComplaintThunk,
+  clearWorkspaceThunk,
+  deleteComplaintThunk,
+} from '../../store/thunks';
 
 export function ComplaintHistoryDrawer({ isOpen, onClose }) {
   const dispatch = useDispatch();
@@ -31,9 +41,13 @@ export function ComplaintHistoryDrawer({ isOpen, onClose }) {
   const totalCount = useSelector(selectComplaintListTotal);
   const selectedComplaintId = useSelector(selectSelectedComplaintId);
   const detailLoading = useSelector(selectDetailLoading);
+  const deletingComplaintId = useSelector(selectDeletingComplaintId);
+  const deleteLoading = useSelector(selectDeleteLoading);
+  const deleteError = useSelector(selectDeleteError);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'DRAFT' | 'COMMITTED'
+  const [pendingDeleteComplaint, setPendingDeleteComplaint] = useState(null);
 
   // Fetch / refetch when filters change or drawer opens
   useEffect(() => {
@@ -70,6 +84,21 @@ export function ComplaintHistoryDrawer({ isOpen, onClose }) {
     url.searchParams.delete('complaintId');
     window.history.replaceState({}, '', url.pathname);
     onClose();
+  };
+
+  const handlePromptDelete = (e, item) => {
+    e.stopPropagation();
+    setPendingDeleteComplaint(item);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDeleteComplaint) return;
+    try {
+      await dispatch(deleteComplaintThunk(pendingDeleteComplaint.id)).unwrap();
+      setPendingDeleteComplaint(null);
+    } catch (err) {
+      console.error('Delete failed:', err);
+    }
   };
 
   const formatDate = (dateStr) => {
@@ -228,13 +257,14 @@ export function ComplaintHistoryDrawer({ isOpen, onClose }) {
               {complaintList.map((item) => {
                 const isSelected = item.id === selectedComplaintId;
                 const isCommitted = item.status === 'COMMITTED';
+                const isDeletingThis = deletingComplaintId === item.id;
 
                 return (
                   <div
                     key={item.id}
                     className={`history-card ${isSelected ? 'is-active' : ''} ${
                       isCommitted ? 'is-committed' : 'is-draft'
-                    }`}
+                    } ${isDeletingThis ? 'is-deleting' : ''}`}
                     onClick={() => handleSelectComplaint(item.id)}
                   >
                     {/* Top Row: Customer Name & Status Badge */}
@@ -276,33 +306,48 @@ export function ComplaintHistoryDrawer({ isOpen, onClose }) {
                       </div>
                     )}
 
-                    {/* Bottom Row: Timestamp and Action Button */}
+                    {/* Bottom Row: Timestamp and Action Buttons */}
                     <div className="card-bottom-row">
                       <span className="card-timestamp">
                         <Clock size={12} />
                         {formatDate(item.updated_at || item.created_at)}
                       </span>
 
-                      <button
-                        type="button"
-                        className={`card-action-btn ${isCommitted ? 'btn-view' : 'btn-open'}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSelectComplaint(item.id);
-                        }}
-                      >
-                        {isCommitted ? (
-                          <>
-                            <Eye size={13} />
-                            <span>View</span>
-                          </>
-                        ) : (
-                          <>
-                            <ExternalLink size={13} />
-                            <span>Open</span>
-                          </>
+                      <div className="card-actions-group">
+                        <button
+                          type="button"
+                          className={`card-action-btn ${isCommitted ? 'btn-view' : 'btn-open'}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectComplaint(item.id);
+                          }}
+                        >
+                          {isCommitted ? (
+                            <>
+                              <Eye size={13} />
+                              <span>View</span>
+                            </>
+                          ) : (
+                            <>
+                              <ExternalLink size={13} />
+                              <span>Open</span>
+                            </>
+                          )}
+                        </button>
+
+                        {!isCommitted && (
+                          <button
+                            type="button"
+                            className="card-action-btn btn-delete"
+                            onClick={(e) => handlePromptDelete(e, item)}
+                            title="Delete draft complaint"
+                            disabled={isDeletingThis}
+                          >
+                            <Trash2 size={13} />
+                            <span>Delete</span>
+                          </button>
                         )}
-                      </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -319,6 +364,73 @@ export function ComplaintHistoryDrawer({ isOpen, onClose }) {
           </button>
         </div>
       </aside>
+
+      {/* Delete Confirmation Modal Dialog */}
+      {pendingDeleteComplaint && (
+        <div className="delete-modal-overlay" onClick={() => setPendingDeleteComplaint(null)}>
+          <div className="delete-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-warning-icon">
+                <AlertTriangle size={22} />
+              </div>
+              <h3 className="modal-title">Delete Draft Complaint?</h3>
+            </div>
+
+            <div className="modal-body">
+              <p className="modal-desc">
+                Are you sure you want to permanently delete this draft complaint?
+              </p>
+              <div className="modal-complaint-summary">
+                <div className="summary-row">
+                  <span className="summary-label">Customer:</span>
+                  <span className="summary-val">{pendingDeleteComplaint.customer_name || 'Unnamed Customer'}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="summary-label">Product:</span>
+                  <span className="summary-val">{pendingDeleteComplaint.product_name || 'Unspecified Product'}</span>
+                </div>
+                {pendingDeleteComplaint.batch_number && (
+                  <div className="summary-row">
+                    <span className="summary-label">Batch:</span>
+                    <span className="summary-val">{pendingDeleteComplaint.batch_number}</span>
+                  </div>
+                )}
+              </div>
+              <p className="modal-danger-note">This action will remove the record from MySQL and cannot be undone.</p>
+              {deleteError && <div className="modal-error-banner">{deleteError}</div>}
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="modal-cancel-btn"
+                onClick={() => setPendingDeleteComplaint(null)}
+                disabled={deleteLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="modal-confirm-delete-btn"
+                onClick={handleConfirmDelete}
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? (
+                  <>
+                    <RotateCw size={14} className="spin-icon" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={14} />
+                    <span>Delete Draft</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

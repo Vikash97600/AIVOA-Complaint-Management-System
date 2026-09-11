@@ -8,7 +8,7 @@ export const selectSummary = (state) => state.complaint.summary;
 export const selectUpdatedFields = (state) => state.complaint.updatedFields || [];
 export const selectQmsReferenceNumber = (state) => state.complaint.qmsReferenceNumber;
 
-// Complaint History & Selection Selectors
+// Complaint History, Selection & Deletion Selectors
 export const selectComplaintList = (state) => state.complaint.complaintList || [];
 export const selectComplaintListLoading = (state) => state.complaint.complaintListLoading;
 export const selectComplaintListError = (state) => state.complaint.complaintListError;
@@ -16,6 +16,9 @@ export const selectComplaintListTotal = (state) => state.complaint.complaintList
 export const selectSelectedComplaintId = (state) => state.complaint.selectedComplaintId;
 export const selectDetailLoading = (state) => state.complaint.detailLoading;
 export const selectDetailError = (state) => state.complaint.detailError;
+export const selectDeletingComplaintId = (state) => state.complaint.deletingComplaintId;
+export const selectDeleteLoading = (state) => state.complaint.deleteLoading;
+export const selectDeleteError = (state) => state.complaint.deleteError;
 
 export const selectCopilotMessages = (state) => state.copilot.messages;
 export const selectCopilotProcessing = (state) => state.copilot.isProcessing;

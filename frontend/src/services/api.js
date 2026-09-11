@@ -189,6 +189,21 @@ export const generateSummary = async (complaintId) => {
   }
 };
 
+export const deleteComplaint = async (complaintId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/complaints/${complaintId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.detail || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    handleFetchError(error, 'Delete complaint API request failed');
+  }
+};
+
 export default {
   API_BASE_URL,
   checkHealth,
@@ -197,6 +212,7 @@ export default {
   commitComplaint,
   getComplaint,
   updateComplaint,
+  deleteComplaint,
   listComplaints,
   checkCompleteness,
   detectDuplicates,

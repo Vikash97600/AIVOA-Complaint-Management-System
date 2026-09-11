@@ -174,3 +174,41 @@ async def commit_complaint_to_qms(
     return await qms_service.commit_complaint_to_ledger(db, complaint_id)
 
 
+async def delete_draft_complaint(
+    db: AsyncSession,
+    complaint_id: uuid.UUID | str,
+) -> dict:
+    """
+    Permanently deletes a draft complaint record and dependent draft metadata.
+    Rejects deletion with ComplaintAlreadyCommittedError (HTTP 409 Conflict) if status is COMMITTED.
+    Rejects deletion if a QMS ledger record is attached.
+    """
+    complaint = await get_complaint_by_id(db, complaint_id)
+
+    if complaint.status == ComplaintStatus.COMMITTED:
+        from app.core.exceptions import ComplaintAlreadyCommittedError
+        raise ComplaintAlreadyCommittedError(str(complaint_id))
+
+    from app.services import qms_service
+    ledger_entry = await qms_service.get_ledger_entry_by_complaint_id(db, complaint.id)
+    if ledger_entry:
+        from app.core.exceptions import ComplaintAlreadyCommittedError
+        raise ComplaintAlreadyCommittedError(str(complaint_id))
+
+    try:
+        deleted_id_str = str(complaint.id)
+        await db.delete(complaint)
+        await db.commit()
+        logger.info(f"Deleted DRAFT complaint ID '{deleted_id_str}'.")
+        return {
+            "success": True,
+            "complaint_id": deleted_id_str,
+            "message": "Draft complaint deleted successfully."
+        }
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to delete draft complaint {complaint_id}: {e}", exc_info=True)
+        raise DatabaseOperationError(f"Failed to delete complaint '{complaint_id}'")
+
+
+

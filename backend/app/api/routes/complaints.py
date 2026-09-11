@@ -63,6 +63,17 @@ async def update_complaint_endpoint(
     complaint = await complaint_service.update_complaint(db, complaint_id, payload)
     return complaint
 
+@router.delete("/{complaint_id}", status_code=status.HTTP_200_OK)
+async def delete_complaint_endpoint(
+    complaint_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Permanently deletes a complaint in DRAFT status.
+    Rejects deletion if status is COMMITTED with HTTP 409 Conflict.
+    """
+    return await complaint_service.delete_draft_complaint(db, complaint_id)
+
 @router.post("/commit", response_model=ComplaintResponse, status_code=status.HTTP_200_OK)
 async def commit_complaint_body_endpoint(
     payload: "QMSCommitRequest",

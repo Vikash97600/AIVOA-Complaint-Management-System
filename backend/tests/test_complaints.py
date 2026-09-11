@@ -394,3 +394,85 @@ async def test_get_complaint_full_detail_payload(async_client: AsyncClient):
     assert detail["risk_assessment"]["requires_quarantine"] is True
 
 
+@pytest.mark.asyncio
+async def test_delete_draft_complaint_success(async_client: AsyncClient):
+    """Test 13 (Prompt 17.2): DELETE /api/complaints/{id} permanently removes a DRAFT complaint."""
+    create_res = await async_client.post(
+        "/api/complaints",
+        json={
+            "customer_name": "Accidental Pharmacy",
+            "product_name": "Test Product 100mg",
+            "batch_number": "DEL12345",
+        }
+    )
+    assert create_res.status_code == 201
+    complaint_id = create_res.json()["id"]
+
+    # Delete draft complaint
+    del_res = await async_client.delete(f"/api/complaints/{complaint_id}")
+    assert del_res.status_code == 200
+    del_data = del_res.json()
+    assert del_data["success"] is True
+    assert del_data["complaint_id"] == complaint_id
+
+    # Verify subsequent GET returns 404 Not Found
+    get_res = await async_client.get(f"/api/complaints/{complaint_id}")
+    assert get_res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_committed_complaint_rejection(async_client: AsyncClient):
+    """Test 14 (Prompt 17.2): DELETE /api/complaints/{id} on a COMMITTED complaint is rejected with 409 Conflict."""
+    create_res = await async_client.post(
+        "/api/complaints",
+        json={
+            "customer_name": "Strict Pharma",
+            "product_name": "Critical Drug 50mg",
+            "batch_number": "COMMITTED_BATCH",
+        }
+    )
+    complaint_id = create_res.json()["id"]
+
+    # Attach risk assessment
+    from app.services.risk_assessment_service import save_or_update_risk_assessment
+    from app.schemas.risk import RiskAssessmentCreate
+    from app.dependencies import get_db
+
+    async for db in app.dependency_overrides[get_db]():
+        await save_or_update_risk_assessment(
+            db,
+            complaint_id,
+            RiskAssessmentCreate(
+                severity_suggested="HIGH",
+                complaint_category="Critical Defect",
+                suggested_next_action="Immediate Recall",
+                risk_details="Safety risk",
+                requires_quarantine=True
+            )
+        )
+        break
+
+    # Commit to QMS Ledger
+    commit_res = await async_client.post(f"/api/complaints/{complaint_id}/commit")
+    assert commit_res.status_code == 200
+
+    # Attempt to DELETE committed complaint
+    del_res = await async_client.delete(f"/api/complaints/{complaint_id}")
+    assert del_res.status_code == 409
+    assert "already been committed" in del_res.json()["detail"].lower()
+
+    # Verify complaint still exists in database
+    get_res = await async_client.get(f"/api/complaints/{complaint_id}")
+    assert get_res.status_code == 200
+    assert get_res.json()["status"] == "COMMITTED"
+
+
+@pytest.mark.asyncio
+async def test_delete_nonexistent_complaint(async_client: AsyncClient):
+    """Test 15 (Prompt 17.2): DELETE /api/complaints/{random_uuid} returns 404 Not Found."""
+    random_uuid = str(uuid.uuid4())
+    del_res = await async_client.delete(f"/api/complaints/{random_uuid}")
+    assert del_res.status_code == 404
+
+
+
